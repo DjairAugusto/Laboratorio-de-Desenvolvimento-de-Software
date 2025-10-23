@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { Role, User } from '../lib/store'
 import { Navigate, useLocation } from 'react-router-dom'
 import { authAPI } from '../lib/api'
+import { demoStore } from '../lib/store'
 
 type AuthCtx = {
   user?: User
@@ -47,17 +48,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function login(login: string, senha: string) {
     // Call backend API for authentication
-    const response = await authAPI.login(login, senha)
+    try {
+      const response = await authAPI.login(login, senha)
 
-    const authenticatedUser: User = {
-      id: response.id,
-      role: response.tipo as Role,
-      name: response.nome,
-      email: response.email,
+      const authenticatedUser: User = {
+        id: response.id,
+        role: response.tipo as Role,
+        name: response.nome,
+        email: response.email,
+      }
+
+      saveUser(authenticatedUser)
+      setUser(authenticatedUser)
+    } catch (e) {
+      // Fallback to demoStore when backend is not available or auth fails
+      try {
+        const resp = demoStore.login(login, senha)
+        const authenticatedUser: User = {
+          id: resp.id,
+          role: resp.tipo as Role,
+          name: resp.nome,
+          email: resp.email,
+        }
+        saveUser(authenticatedUser)
+        setUser(authenticatedUser)
+      } catch (err) {
+        throw err
+      }
     }
-
-    saveUser(authenticatedUser)
-    setUser(authenticatedUser)
   }
 
   function logout() {

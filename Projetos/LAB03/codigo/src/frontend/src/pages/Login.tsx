@@ -42,7 +42,14 @@ export default function Login({ fixedRole }: { fixedRole?: Role }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="card w-full max-w-md p-6 md:p-8">
-        <h2 className="text-xl font-semibold mb-6">Entrar</h2>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-md bg-slate-200 flex items-center justify-center text-slate-400 font-bold">SC</div>
+          <div>
+            <div className="text-lg font-semibold">Student Coin</div>
+            <div className="text-sm text-slate-500">Entrar na plataforma</div>
+          </div>
+        </div>
+        <h2 className="text-xl font-semibold mb-4">Entrar</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="label">Login</label>

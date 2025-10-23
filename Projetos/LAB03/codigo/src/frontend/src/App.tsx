@@ -91,7 +91,7 @@ export default function App() {
         <Route path="/vantagens" element={<Shell><RequireAuth role="aluno"><Vantagens /></RequireAuth></Shell>} />
         <Route path="/vantagens/:id" element={<Shell><RequireAuth role="aluno"><VantagemDetalhe /></RequireAuth></Shell>} />
         <Route path="/perfil" element={<Shell><RequireAuth role="aluno"><Perfil /></RequireAuth></Shell>} />
-        <Route path="/cadastro-aluno" element={<Shell><CadastroAluno /></Shell>} />
+  <Route path="/cadastro-aluno" element={<CadastroAluno />} />
         <Route path="/prof/enviar" element={<Shell><RequireAuth role="professor"><ProfessorEnviar /></RequireAuth></Shell>} />
         <Route path="/prof/historico" element={<Shell><RequireAuth role="professor"><ProfessorHistorico /></RequireAuth></Shell>} />
         <Route path="/empresa" element={<Shell><RequireAuth role="empresa"><EmpresaCadastro /></RequireAuth></Shell>} />
