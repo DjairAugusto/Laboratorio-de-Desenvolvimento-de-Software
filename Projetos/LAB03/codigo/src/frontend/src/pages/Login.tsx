@@ -40,44 +40,63 @@ export default function Login({ fixedRole }: { fixedRole?: Role }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="card w-full max-w-md p-6 md:p-8">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-md bg-slate-200 flex items-center justify-center text-slate-400 font-bold">SC</div>
-          <div>
-            <div className="text-lg font-semibold">Student Coin</div>
-            <div className="text-sm text-slate-500">Entrar na plataforma</div>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="max-w-6xl mx-auto py-12 px-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+          {/* Left promotional panel */}
+          <div className="hidden md:flex flex-col justify-center px-8 py-12 rounded-lg bg-gradient-to-br from-sky-600 to-indigo-700 text-white shadow-lg">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-14 h-14 rounded-md bg-white/20 flex items-center justify-center text-white font-bold text-lg">SC</div>
+              <div>
+                <div className="text-2xl font-bold">Student Coin</div>
+                <div className="text-sm opacity-90">Programa de reconhecimento e benefícios para alunos</div>
+              </div>
+            </div>
+            <h3 className="text-3xl font-extrabold leading-tight mb-4">Reconheça, incentive e transforme</h3>
+            <p className="opacity-90">Distribua moedas, gere histórico de reconhecimentos e permita resgates por vantagens — tudo pensado para a comunidade acadêmica.</p>
+          </div>
+
+          {/* Right: form card */}
+          <div className="flex items-center justify-center">
+            <div className="w-full max-w-md bg-white rounded-xl shadow-xl p-8">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 mx-auto rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 font-bold text-xl">SC</div>
+                <h2 className="text-2xl font-semibold mt-3">Entrar</h2>
+                <p className="text-sm text-slate-500 mt-1">Acesse sua conta</p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="label">Login</label>
+                  <input
+                    className="input"
+                    value={loginInput}
+                    onChange={(e) => setLoginInput(e.target.value)}
+                    placeholder="seu.login ou email"
+                    disabled={loading}
+                  />
+                </div>
+                <div>
+                  <label className="label">Senha</label>
+                  <input
+                    className="input"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Link to="/cadastro-aluno" className="text-sky-600 hover:underline text-sm">Não tem uma conta? Cadastre-se</Link>
+                  <button type="submit" className="btn bg-sky-600 hover:bg-sky-700 text-white" disabled={loading}>
+                    {loading ? 'Entrando...' : 'Entrar'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
-        <h2 className="text-xl font-semibold mb-4">Entrar</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="label">Login</label>
-            <input
-              className="input"
-              value={loginInput}
-              onChange={(e) => setLoginInput(e.target.value)}
-              placeholder="seu.login"
-              disabled={loading}
-            />
-          </div>
-          <div>
-            <label className="label">Senha</label>
-            <input
-              className="input"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <Link to="/cadastro-aluno" className="text-brand hover:text-brand-dark text-sm">Não tem uma conta? Cadastre-se</Link>
-            <button type="submit" className="btn" disabled={loading}>
-              {loading ? 'Entrando...' : 'Entrar'}
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   )

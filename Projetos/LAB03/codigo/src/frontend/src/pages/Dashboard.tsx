@@ -16,6 +16,7 @@ type Vantagem = {
   id: number
   descricao: string
   custoMoedas: number
+  foto?: string
 }
 
 export default function Dashboard() {
@@ -30,15 +31,25 @@ export default function Dashboard() {
   useEffect(() => {
     async function loadData() {
       try {
-        // Load first student for now (TODO: use authenticated user)
-        const alunos = await alunosAPI.listar()
-        if (alunos.length > 0) {
-          setAluno(alunos[0])
+        // Prefer authenticated user if available
+        if (user && user.id) {
+          const a = await alunosAPI.buscarPorId(user.id)
+          setAluno(a)
+        } else {
+          const alunos = await alunosAPI.listar()
+          if (alunos.length > 0) setAluno(alunos[0])
         }
 
-        // TODO: Load transactions and advantages from backend when endpoints are ready
-        setTransacoes([])
-        setVantagens([])
+        // Sample placeholders for UX while backend endpoints are not ready
+        setTransacoes([
+          { id: 1, titulo: 'Reconhecimento: Projeto X', valor: 250, autor: 'Prof. João', data: '2025-10-12' },
+          { id: 2, titulo: 'Resgate: Curso Online', valor: -300, data: '2025-10-03' },
+        ])
+
+        setVantagens([
+          { id: 1, descricao: 'Curso Online - 20% off', custoMoedas: 500, foto: '' },
+          { id: 2, descricao: 'Vale-livro R$50', custoMoedas: 150, foto: '' },
+        ])
       } catch (err) {
         error('Erro ao carregar dados do dashboard')
       } finally {
@@ -46,87 +57,118 @@ export default function Dashboard() {
       }
     }
     loadData()
-  }, [error])
+  }, [error, user])
 
-  if (loading) {
-    return <div className="text-center py-8">Carregando...</div>
-  }
-
-  if (!aluno) {
-    return <div className="text-center py-8">Nenhum aluno encontrado</div>
-  }
+  if (loading) return <div className="text-center py-8">Carregando...</div>
+  if (!aluno) return <div className="text-center py-8">Nenhum aluno encontrado</div>
 
   const saldoTotal = aluno.saldoMoedas || 0
   const resgatadas = transacoes.filter(t => t.valor < 0).reduce((a, b) => a + Math.abs(b.valor), 0)
   const recebidas = transacoes.filter(t => t.valor > 0).reduce((a, b) => a + b.valor, 0)
 
-  const cards = [
-    { title: 'Saldo Total', value: `${saldoTotal} moedas`, hint: 'Disponível para resgate' },
-    { title: 'Resgatadas', value: `${resgatadas}`, hint: 'Últimos 30 dias' },
-    { title: 'Recebidas', value: `${recebidas}`, hint: 'Últimos 30 dias' },
-  ]
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Extrato - {aluno.nome}</h2>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((c) => (
-          <div className="card p-5" key={c.title}>
-            <div className="text-sm text-slate-500">{c.title}</div>
-            <div className="text-2xl font-semibold mt-1">{c.value}</div>
-            <div className="text-xs text-slate-400 mt-2">{c.hint}</div>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Left: profile summary */}
+      <div className="lg:col-span-1">
+        <div className="card p-5 sticky top-6">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-xl font-semibold">{(aluno.nome || 'U').charAt(0)}</div>
+            <div>
+              <div className="text-lg font-semibold">{aluno.nome}</div>
+              <div className="text-sm text-slate-500">{aluno.email}</div>
+            </div>
           </div>
-        ))}
-      </div>
 
-      <div className="card p-5">
-        <div className="font-medium mb-3">Histórico de Transações</div>
-        <div className="divide-y">
-          {transacoes.length === 0 ? (
-            <div className="py-3 text-center text-slate-500">Nenhuma transação encontrada</div>
-          ) : (
-            transacoes.map((t) => (
-              <div key={t.id} className="py-3 flex items-center justify-between">
-                <div>
-                  <div className="font-medium">{t.titulo}</div>
-                  <div className="text-sm text-slate-500">{t.autor || t.data}</div>
-                </div>
-                <div className={`font-medium ${t.valor >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {t.valor >= 0 ? `+${t.valor}` : `${t.valor}`}
-                </div>
+          <div className="mt-5">
+            <div className="text-sm text-slate-500">Saldo atual</div>
+            <div className="text-3xl font-bold mt-1">{saldoTotal} <span className="text-sm font-medium">moedas</span></div>
+            <div className="mt-4">
+              <div className="text-sm text-slate-600 mb-2">Progresso para próxima vantagem</div>
+              <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                <div className="bg-sky-600 h-3 rounded-full" style={{ width: `${Math.min(100, (saldoTotal / 1000) * 100)}%` }} />
               </div>
-            ))
-          )}
+              <div className="text-xs text-slate-500 mt-2">{Math.min(100, Math.round((saldoTotal / 1000) * 100))}%</div>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <button className="btn w-full" onClick={() => navigate('/vantagens')}>Ver Vantagens</button>
+              <button className="btn bg-slate-200 text-slate-800 hover:bg-slate-300" onClick={() => navigate('/perfil')}>Editar</button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <div className="font-medium">Vantagens em Destaque</div>
-          <button className="text-sm text-brand hover:text-brand-dark" onClick={() => navigate('/vantagens')}>
-            Marketplace
-          </button>
+      {/* Right: stats, transactions and featured advantages */}
+      <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="card p-5">
+            <div className="text-sm text-slate-500">Saldo Total</div>
+            <div className="text-2xl font-semibold mt-1">{saldoTotal} moedas</div>
+            <div className="text-xs text-slate-400 mt-2">Disponível para resgate</div>
+          </div>
+          <div className="card p-5">
+            <div className="text-sm text-slate-500">Recebidas (30d)</div>
+            <div className="text-2xl font-semibold mt-1">{recebidas}</div>
+            <div className="text-xs text-slate-400 mt-2">Nos últimos 30 dias</div>
+          </div>
+          <div className="card p-5">
+            <div className="text-sm text-slate-500">Resgatadas (30d)</div>
+            <div className="text-2xl font-semibold mt-1">{resgatadas}</div>
+            <div className="text-xs text-slate-400 mt-2">Nos últimos 30 dias</div>
+          </div>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {vantagens.length === 0 ? (
-            <div className="col-span-3 text-center text-slate-500 py-8">Nenhuma vantagem disponível</div>
-          ) : (
-            vantagens.map((v) => (
-              <div className="card overflow-hidden" key={v.id}>
-                <div className="h-36 bg-slate-200" />
-                <div className="p-4">
-                  <div className="font-medium">{v.descricao}</div>
-                  <div className="text-sm text-slate-500 mb-3">{v.custoMoedas} moedas</div>
-                  <button className="btn" onClick={() => navigate(`/vantagens/${v.id}`)}>
-                    Ver detalhes
-                  </button>
+
+        <div className="card p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="font-medium">Histórico de Transações</div>
+            <button className="text-sm text-sky-600 hover:underline" onClick={() => navigate('/transactions')}>Ver tudo</button>
+          </div>
+          <div className="divide-y">
+            {transacoes.length === 0 ? (
+              <div className="py-6 text-center text-slate-500">Nenhuma transação encontrada</div>
+            ) : (
+              transacoes.map((t) => (
+                <div key={t.id} className="py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-md bg-slate-100 flex items-center justify-center text-slate-500">{t.titulo.charAt(0)}</div>
+                    <div>
+                      <div className="font-medium">{t.titulo}</div>
+                      <div className="text-sm text-slate-500">{t.autor || t.data}</div>
+                    </div>
+                  </div>
+                  <div className={`font-medium ${t.valor >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {t.valor >= 0 ? `+${t.valor}` : `${t.valor}`}
+                  </div>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="font-medium">Vantagens em Destaque</div>
+            <button className="text-sm text-sky-600 hover:underline" onClick={() => navigate('/vantagens')}>Marketplace</button>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {vantagens.length === 0 ? (
+              <div className="col-span-3 text-center text-slate-500 py-8">Nenhuma vantagem disponível</div>
+            ) : (
+              vantagens.map((v) => (
+                <div className="card overflow-hidden" key={v.id}>
+                  <div className="h-36 bg-gradient-to-br from-slate-100 to-white flex items-center justify-center text-slate-400">{v.foto ? <img src={v.foto} alt={v.descricao} className="w-full h-full object-cover" /> : 'Imagem'}</div>
+                  <div className="p-4">
+                    <div className="font-medium">{v.descricao}</div>
+                    <div className="text-sm text-slate-500 mb-3">{v.custoMoedas} moedas</div>
+                    <div className="flex gap-2">
+                      <button className="btn" onClick={() => navigate(`/vantagens/${v.id}`)}>Ver detalhes</button>
+                      <button className="btn bg-sky-600 text-white" onClick={() => {/* quick redeem could be added */}}>Resgatar</button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>
