@@ -1,33 +1,49 @@
 import PageHeader from '../components/PageHeader'
 import { useState } from 'react'
 import { useToast } from '../hooks/use-toast'
+import { vantagensAPI } from '../lib/api'
+import { useAuth } from '../context/Auth'
+import { useNavigate } from 'react-router-dom'
 
 export default function EmpresaNovaVantagem() {
   const [desc, setDesc] = useState('')
   const [price, setPrice] = useState(500)
   const [foto, setFoto] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const { success, error } = useToast()
+  const { user } = useAuth()
+  const navigate = useNavigate()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
+    if (!user || user.role !== 'empresa') {
+      error('Apenas empresas podem cadastrar vantagens')
+      return
+    }
+
     try {
-      // TODO: Create vantagem via API when endpoint is available
-      const vantagem = {
-        descricao: desc || 'Vantagem',
+      setSubmitting(true)
+      await vantagensAPI.criar({
+        descricao: desc,
         custoMoedas: price,
         foto: foto || undefined,
-      }
+        empresaId: user.id,
+      })
 
-      console.log('Vantagem a ser criada:', vantagem)
-      success('Vantagem salva com sucesso!')
+      success('Vantagem cadastrada com sucesso!')
 
       // Reset form
       setDesc('')
       setPrice(500)
       setFoto('')
-    } catch (err) {
-      error('Erro ao salvar vantagem. Tente novamente.')
+
+      // Navigate back to vantagens list
+      setTimeout(() => navigate('/empresa/vantagens'), 1000)
+    } catch (err: any) {
+      error(err.message || 'Erro ao salvar vantagem. Tente novamente.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -68,7 +84,9 @@ export default function EmpresaNovaVantagem() {
             />
           </div>
           <div className="md:col-span-2 flex justify-end">
-            <button className="btn" type="submit">Salvar Vantagem</button>
+            <button className="btn" type="submit" disabled={submitting}>
+              {submitting ? 'Salvando...' : 'Salvar Vantagem'}
+            </button>
           </div>
         </form>
       </div>
