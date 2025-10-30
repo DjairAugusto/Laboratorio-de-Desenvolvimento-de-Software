@@ -35,7 +35,22 @@ export async function health(): Promise<string> {
   return res.text()
 }
 
-// Types
+// Helper to get current user from localStorage
+function getCurrentUserId(): number | null {
+  const authStr = localStorage.getItem('lab03-auth')
+  if (!authStr) return null
+  try {
+    const auth = JSON.parse(authStr)
+    return auth.id || null
+  } catch {
+    return null
+  }
+}
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
 export type AlunoDTO = {
   id?: number
   nome: string
@@ -66,6 +81,20 @@ export type VantagemDTO = {
   descricao: string
   foto?: string
   custoMoedas: number
+  empresaId?: number
+  empresaNome?: string
+}
+
+export type TransacaoDTO = {
+  id?: number
+  usuarioId: number
+  usuarioNome?: string
+  usuarioDestinoId?: number
+  usuarioDestinoNome?: string
+  data: string
+  valor: number
+  tipo: 'ENVIO' | 'RESGATE' | 'CREDITO' | 'TRANSFERENCIA_PROFESSOR_ALUNO'
+  motivo: string
 }
 
 export type LoginRequestDTO = {
@@ -84,15 +113,37 @@ export type LoginResponseDTO = {
 export type ProfessorDTO = {
   id?: number
   nome: string
-  cpf: string
+  documento: string
   departamento: string
   email: string
   login: string
   senha?: string
   instituicaoId: number
+  saldoMoedas?: number
 }
 
-// Auth API
+export type EnviarMoedasRequest = {
+  alunoId: number
+  quantidade: number
+  motivo: string
+}
+
+export type EnviarMoedasResponse = {
+  professorId: number
+  professorNome: string
+  alunoId: number
+  alunoNome: string
+  quantidade: number
+  motivo: string
+  novoSaldoProfessor: number
+  novoSaldoAluno: number
+  transacaoId: number
+}
+
+// ============================================================================
+// AUTH API
+// ============================================================================
+
 export const authAPI = {
   async login(login: string, senha: string): Promise<LoginResponseDTO> {
     return apiCall<LoginResponseDTO>('/api/auth/login', {
@@ -102,61 +153,27 @@ export const authAPI = {
   },
 }
 
-// Alunos API
+// ============================================================================
+// ALUNOS API
+// ============================================================================
+
 export const alunosAPI = {
   async listar(): Promise<AlunoDTO[]> {
-    try {
-      return await apiCall<AlunoDTO[]>('/api/alunos')
-    } catch {
-      // Fallback demo: map demoStore students to AlunoDTO
-      const { demoStore } = await import('./store')
-      const alunos = demoStore.listarAlunos()
-      return alunos.map((s: any, idx: number) => ({
-        id: s.id ?? idx + 1,
-        nome: s.nome,
-        documento: s.cpf || '000.000.000-00',
-        email: s.email,
-        login: s.email,
-        rg: s.rg || '00.000.000-0',
-        endereco: s.endereco || 'Endereço não informado',
-        curso: s.curso || 'Curso',
-        saldoMoedas: s.saldo ?? 0,
-        instituicaoId: 1,
-      }))
-    }
+    return apiCall<AlunoDTO[]>('/api/alunos')
   },
 
   async buscarPorId(id: number): Promise<AlunoDTO> {
-    try {
-      return await apiCall<AlunoDTO>(`/api/alunos/${id}`)
-    } catch {
-      const { demoStore } = await import('./store')
-      const alunos = demoStore.listarAlunos() as any[]
-      const s = alunos.find((a) => (a.id ?? 0) === id) || alunos[0]
-      if (!s) throw new Error('Aluno demo não encontrado')
-      return {
-        id: s.id ?? 1,
-        nome: s.nome,
-        documento: s.cpf || '000.000.000-00',
-        email: s.email,
-        login: s.email,
-        rg: s.rg || '00.000.000-0',
-        endereco: s.endereco || 'Endereço não informado',
-        curso: s.curso || 'Curso',
-        saldoMoedas: s.saldo ?? 0,
-        instituicaoId: 1,
-      }
-    }
+    return apiCall<AlunoDTO>(`/api/alunos/${id}`)
   },
 
-  async criar(data: Omit<AlunoDTO, 'id'>): Promise<AlunoDTO> {
+  async criar(data: Omit<AlunoDTO, 'id' | 'saldoMoedas'>): Promise<AlunoDTO> {
     return apiCall<AlunoDTO>('/api/alunos', {
       method: 'POST',
       body: JSON.stringify(data),
     })
   },
 
-  async atualizar(id: number, data: Omit<AlunoDTO, 'id'>): Promise<AlunoDTO> {
+  async atualizar(id: number, data: Partial<AlunoDTO>): Promise<AlunoDTO> {
     return apiCall<AlunoDTO>(`/api/alunos/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -170,40 +187,69 @@ export const alunosAPI = {
   },
 
   async adicionarMoedas(id: number, quantidade: number): Promise<string> {
-    try {
-      return await apiCall<string>(`/api/alunos/${id}/adicionar-moedas?quantidade=${quantidade}`, { method: 'PATCH' })
-    } catch {
-      const { demoStore } = await import('./store')
-      // Find current user as professor (best-effort using auth in localStorage)
-      const authRaw = localStorage.getItem('lab03-auth')
-      const auth = authRaw ? JSON.parse(authRaw) : undefined
-      const profId = auth?.id || 2
-      demoStore.sendCoins({ professorId: profId, alunoId: id, valor: quantidade, motivo: 'Reconhecimento (demo)' })
-      return 'OK'
-    }
+    return apiCall<string>(`/api/alunos/${id}/adicionar-moedas?quantidade=${quantidade}`, {
+      method: 'PATCH',
+    })
   },
 
   async debitarMoedas(id: number, quantidade: number): Promise<string> {
-    try {
-      return await apiCall<string>(`/api/alunos/${id}/debitar-moedas?quantidade=${quantidade}`, { method: 'PATCH' })
-    } catch {
-      const { demoStore } = await import('./store')
-      const db = demoStore.getDB()
-      const aluno = db.students.find((s: any) => s.id === id)
-      if (aluno) {
-        aluno.saldo = (aluno.saldo ?? 0) - Math.max(0, quantidade)
-        // Record resgate
-        const idBase = Math.max(0, ...db.transactions.map((t: any) => t.id)) + 1
-        const today = new Date().toISOString().slice(0, 10)
-        db.transactions.push({ id: idBase, tipo: 'aluno_resgate', data: today, alunoId: id, valor: Math.max(0, quantidade), descricao: 'Resgate (demo)' })
-        localStorage.setItem('lab03-demo-db', JSON.stringify(db))
-      }
-      return 'OK'
-    }
+    return apiCall<string>(`/api/alunos/${id}/debitar-moedas?quantidade=${quantidade}`, {
+      method: 'PATCH',
+    })
   },
 }
 
-// Empresas API
+// ============================================================================
+// PROFESSORES API
+// ============================================================================
+
+export const professoresAPI = {
+  async listar(): Promise<ProfessorDTO[]> {
+    return apiCall<ProfessorDTO[]>('/api/professores')
+  },
+
+  async buscarPorId(id: number): Promise<ProfessorDTO> {
+    return apiCall<ProfessorDTO>(`/api/professores/${id}`)
+  },
+
+  async criar(data: Omit<ProfessorDTO, 'id' | 'saldoMoedas'>): Promise<ProfessorDTO> {
+    return apiCall<ProfessorDTO>('/api/professores', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+
+  async atualizar(id: number, data: Partial<ProfessorDTO>): Promise<ProfessorDTO> {
+    return apiCall<ProfessorDTO>(`/api/professores/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  },
+
+  async deletar(id: number): Promise<void> {
+    return apiCall<void>(`/api/professores/${id}`, {
+      method: 'DELETE',
+    })
+  },
+
+  async enviarMoedas(professorId: number, request: EnviarMoedasRequest): Promise<EnviarMoedasResponse> {
+    return apiCall<EnviarMoedasResponse>(`/api/professores/${professorId}/enviar-moedas`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
+  },
+
+  async adicionarMoedas(professorId: number, quantidade: number): Promise<string> {
+    return apiCall<string>(`/api/professores/${professorId}/adicionar-moedas?quantidade=${quantidade}`, {
+      method: 'PATCH',
+    })
+  },
+}
+
+// ============================================================================
+// EMPRESAS API
+// ============================================================================
+
 export const empresasAPI = {
   async listar(): Promise<EmpresaDTO[]> {
     return apiCall<EmpresaDTO[]>('/api/empresas')
@@ -234,35 +280,76 @@ export const empresasAPI = {
   },
 }
 
-// Professores API (stub)
-export const professoresAPI = {
-  async criar(data: Omit<ProfessorDTO, 'id'>): Promise<ProfessorDTO> {
-    try {
-      return await apiCall<ProfessorDTO>('/api/professores', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      })
-    } catch {
-      // Fallback: create user in demo store
-      const { demoStore } = await import('./store')
-      const created = demoStore.criarProfessor({
-        nome: data.nome,
-        cpf: data.cpf,
-        departamento: data.departamento,
-        email: data.email,
-        login: data.login,
-        senha: data.senha,
-        instituicaoId: data.instituicaoId,
-      })
-      return {
-        id: created.id,
-        nome: created.name,
-        cpf: data.cpf,
-        departamento: data.departamento,
-        email: created.email,
-        login: created.login,
-        instituicaoId: data.instituicaoId,
-      }
-    }
+// ============================================================================
+// VANTAGENS API
+// ============================================================================
+
+export const vantagensAPI = {
+  async listar(): Promise<VantagemDTO[]> {
+    return apiCall<VantagemDTO[]>('/api/vantagens')
+  },
+
+  async buscarPorId(id: number): Promise<VantagemDTO> {
+    return apiCall<VantagemDTO>(`/api/vantagens/${id}`)
+  },
+
+  async listarPorEmpresa(empresaId: number): Promise<VantagemDTO[]> {
+    return apiCall<VantagemDTO[]>(`/api/vantagens/empresa/${empresaId}`)
+  },
+
+  async criar(data: Omit<VantagemDTO, 'id' | 'empresaNome'>): Promise<VantagemDTO> {
+    return apiCall<VantagemDTO>('/api/vantagens', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+
+  async atualizar(id: number, data: Partial<VantagemDTO>): Promise<VantagemDTO> {
+    return apiCall<VantagemDTO>(`/api/vantagens/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  },
+
+  async deletar(id: number): Promise<void> {
+    return apiCall<void>(`/api/vantagens/${id}`, {
+      method: 'DELETE',
+    })
+  },
+
+  async resgatar(vantagemId: number, alunoId: number): Promise<any> {
+    return apiCall<any>(`/api/vantagens/${vantagemId}/resgatar?alunoId=${alunoId}`, {
+      method: 'POST',
+    })
+  },
+}
+
+// ============================================================================
+// TRANSAÇÕES API
+// ============================================================================
+
+export const transacoesAPI = {
+  async listar(): Promise<TransacaoDTO[]> {
+    return apiCall<TransacaoDTO[]>('/api/transacoes')
+  },
+
+  async buscarPorId(id: number): Promise<TransacaoDTO> {
+    return apiCall<TransacaoDTO>(`/api/transacoes/${id}`)
+  },
+
+  async listarPorAluno(alunoId: number): Promise<TransacaoDTO[]> {
+    return apiCall<TransacaoDTO[]>(`/api/transacoes/aluno/${alunoId}`)
+  },
+
+  async listarPorProfessor(professorId: number): Promise<TransacaoDTO[]> {
+    return apiCall<TransacaoDTO[]>(`/api/transacoes/professor/${professorId}`)
+  },
+
+  async listarPorEmpresa(empresaId: number): Promise<TransacaoDTO[]> {
+    return apiCall<TransacaoDTO[]>(`/api/transacoes/empresa/${empresaId}`)
+  },
+
+  async listarPorTipo(tipo: 'ENVIO' | 'RESGATE' | 'CREDITO' | 'TRANSFERENCIA_PROFESSOR_ALUNO'): Promise<TransacaoDTO[]> {
+    return apiCall<TransacaoDTO[]>(`/api/transacoes/tipo/${tipo}`)
   },
 }
