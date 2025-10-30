@@ -35,7 +35,7 @@ function saveUser(user: User | undefined) {
 
 export function defaultDashboard(role: Role): string {
   if (role === 'aluno') return '/dashboard'
-  if (role === 'professor') return '/prof/historico'
+  if (role === 'professor') return '/prof/dashboard'
   return '/empresa'
 }
 

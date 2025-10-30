@@ -11,6 +11,8 @@ import Perfil from './pages/Perfil'
 import CadastroAluno from './pages/CadastroAluno'
 import ProfessorEnviar from './pages/ProfessorEnviar'
 import ProfessorHistorico from './pages/ProfessorHistorico'
+import ProfessorDashboard from './pages/ProfessorDashboard'
+import CadastroProfessor from './pages/CadastroProfessor'
 import EmpresaCadastro from './pages/EmpresaCadastro'
 import EmpresaVantagens from './pages/EmpresaVantagens'
 import EmpresaNovaVantagem from './pages/EmpresaNovaVantagem'
@@ -34,6 +36,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           )}
           {user?.role === 'professor' && (
             <Section title="Professor">
+              <NavItem to="/prof/dashboard" icon={<LayoutDashboard size={18} />}>Dashboard</NavItem>
               <NavItem to="/prof/enviar" icon={<Send size={18} />}>Enviar Moedas</NavItem>
               <NavItem to="/prof/historico" icon={<History size={18} />}>Histórico</NavItem>
             </Section>
@@ -92,7 +95,9 @@ export default function App() {
         <Route path="/vantagens/:id" element={<Shell><RequireAuth role="aluno"><VantagemDetalhe /></RequireAuth></Shell>} />
         <Route path="/perfil" element={<Shell><RequireAuth role="aluno"><Perfil /></RequireAuth></Shell>} />
   <Route path="/cadastro-aluno" element={<CadastroAluno />} />
-        <Route path="/prof/enviar" element={<Shell><RequireAuth role="professor"><ProfessorEnviar /></RequireAuth></Shell>} />
+    <Route path="/cadastro-professor" element={<CadastroProfessor />} />
+  <Route path="/prof/dashboard" element={<Shell><RequireAuth role="professor"><ProfessorDashboard /></RequireAuth></Shell>} />
+  <Route path="/prof/enviar" element={<Shell><RequireAuth role="professor"><ProfessorEnviar /></RequireAuth></Shell>} />
         <Route path="/prof/historico" element={<Shell><RequireAuth role="professor"><ProfessorHistorico /></RequireAuth></Shell>} />
         <Route path="/empresa" element={<Shell><RequireAuth role="empresa"><EmpresaCadastro /></RequireAuth></Shell>} />
         <Route path="/empresa/vantagens" element={<Shell><RequireAuth role="empresa"><EmpresaVantagens /></RequireAuth></Shell>} />

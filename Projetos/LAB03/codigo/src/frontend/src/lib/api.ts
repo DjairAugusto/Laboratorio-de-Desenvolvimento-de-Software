@@ -81,6 +81,17 @@ export type LoginResponseDTO = {
   tipo: 'aluno' | 'professor' | 'empresa'
 }
 
+export type ProfessorDTO = {
+  id?: number
+  nome: string
+  cpf: string
+  departamento: string
+  email: string
+  login: string
+  senha?: string
+  instituicaoId: number
+}
+
 // Auth API
 export const authAPI = {
   async login(login: string, senha: string): Promise<LoginResponseDTO> {
@@ -94,11 +105,48 @@ export const authAPI = {
 // Alunos API
 export const alunosAPI = {
   async listar(): Promise<AlunoDTO[]> {
-    return apiCall<AlunoDTO[]>('/api/alunos')
+    try {
+      return await apiCall<AlunoDTO[]>('/api/alunos')
+    } catch {
+      // Fallback demo: map demoStore students to AlunoDTO
+      const { demoStore } = await import('./store')
+      const alunos = demoStore.listarAlunos()
+      return alunos.map((s: any, idx: number) => ({
+        id: s.id ?? idx + 1,
+        nome: s.nome,
+        documento: s.cpf || '000.000.000-00',
+        email: s.email,
+        login: s.email,
+        rg: s.rg || '00.000.000-0',
+        endereco: s.endereco || 'Endereço não informado',
+        curso: s.curso || 'Curso',
+        saldoMoedas: s.saldo ?? 0,
+        instituicaoId: 1,
+      }))
+    }
   },
 
   async buscarPorId(id: number): Promise<AlunoDTO> {
-    return apiCall<AlunoDTO>(`/api/alunos/${id}`)
+    try {
+      return await apiCall<AlunoDTO>(`/api/alunos/${id}`)
+    } catch {
+      const { demoStore } = await import('./store')
+      const alunos = demoStore.listarAlunos() as any[]
+      const s = alunos.find((a) => (a.id ?? 0) === id) || alunos[0]
+      if (!s) throw new Error('Aluno demo não encontrado')
+      return {
+        id: s.id ?? 1,
+        nome: s.nome,
+        documento: s.cpf || '000.000.000-00',
+        email: s.email,
+        login: s.email,
+        rg: s.rg || '00.000.000-0',
+        endereco: s.endereco || 'Endereço não informado',
+        curso: s.curso || 'Curso',
+        saldoMoedas: s.saldo ?? 0,
+        instituicaoId: 1,
+      }
+    }
   },
 
   async criar(data: Omit<AlunoDTO, 'id'>): Promise<AlunoDTO> {
@@ -122,15 +170,36 @@ export const alunosAPI = {
   },
 
   async adicionarMoedas(id: number, quantidade: number): Promise<string> {
-    return apiCall<string>(`/api/alunos/${id}/adicionar-moedas?quantidade=${quantidade}`, {
-      method: 'PATCH',
-    })
+    try {
+      return await apiCall<string>(`/api/alunos/${id}/adicionar-moedas?quantidade=${quantidade}`, { method: 'PATCH' })
+    } catch {
+      const { demoStore } = await import('./store')
+      // Find current user as professor (best-effort using auth in localStorage)
+      const authRaw = localStorage.getItem('lab03-auth')
+      const auth = authRaw ? JSON.parse(authRaw) : undefined
+      const profId = auth?.id || 2
+      demoStore.sendCoins({ professorId: profId, alunoId: id, valor: quantidade, motivo: 'Reconhecimento (demo)' })
+      return 'OK'
+    }
   },
 
   async debitarMoedas(id: number, quantidade: number): Promise<string> {
-    return apiCall<string>(`/api/alunos/${id}/debitar-moedas?quantidade=${quantidade}`, {
-      method: 'PATCH',
-    })
+    try {
+      return await apiCall<string>(`/api/alunos/${id}/debitar-moedas?quantidade=${quantidade}`, { method: 'PATCH' })
+    } catch {
+      const { demoStore } = await import('./store')
+      const db = demoStore.getDB()
+      const aluno = db.students.find((s: any) => s.id === id)
+      if (aluno) {
+        aluno.saldo = (aluno.saldo ?? 0) - Math.max(0, quantidade)
+        // Record resgate
+        const idBase = Math.max(0, ...db.transactions.map((t: any) => t.id)) + 1
+        const today = new Date().toISOString().slice(0, 10)
+        db.transactions.push({ id: idBase, tipo: 'aluno_resgate', data: today, alunoId: id, valor: Math.max(0, quantidade), descricao: 'Resgate (demo)' })
+        localStorage.setItem('lab03-demo-db', JSON.stringify(db))
+      }
+      return 'OK'
+    }
   },
 }
 
@@ -162,5 +231,38 @@ export const empresasAPI = {
     return apiCall<void>(`/api/empresas/${id}`, {
       method: 'DELETE',
     })
+  },
+}
+
+// Professores API (stub)
+export const professoresAPI = {
+  async criar(data: Omit<ProfessorDTO, 'id'>): Promise<ProfessorDTO> {
+    try {
+      return await apiCall<ProfessorDTO>('/api/professores', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    } catch {
+      // Fallback: create user in demo store
+      const { demoStore } = await import('./store')
+      const created = demoStore.criarProfessor({
+        nome: data.nome,
+        cpf: data.cpf,
+        departamento: data.departamento,
+        email: data.email,
+        login: data.login,
+        senha: data.senha,
+        instituicaoId: data.instituicaoId,
+      })
+      return {
+        id: created.id,
+        nome: created.name,
+        cpf: data.cpf,
+        departamento: data.departamento,
+        email: created.email,
+        login: created.login,
+        instituicaoId: data.instituicaoId,
+      }
+    }
   },
 }

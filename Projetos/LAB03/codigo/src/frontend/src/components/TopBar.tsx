@@ -1,4 +1,4 @@
-import { useAuth } from '../context/Auth'
+import { useAuth, defaultDashboard } from '../context/Auth'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -25,8 +25,10 @@ export default function TopBar() {
           </button>
           {open && (
             <div className="absolute right-0 mt-2 w-44 bg-white shadow-lg rounded-md p-2">
-              <button className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50" onClick={() => navigate('/perfil')}>Perfil</button>
-              <button className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50" onClick={() => navigate('/dashboard')}>Dashboard</button>
+              {user?.role === 'aluno' && (
+                <button className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50" onClick={() => navigate('/perfil')}>Perfil</button>
+              )}
+              <button className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50" onClick={() => navigate(defaultDashboard(user?.role || 'aluno' as any))}>Dashboard</button>
               <div className="border-t my-1" />
               <button className="w-full text-left px-3 py-2 text-sm text-rose-600 hover:bg-slate-50" onClick={handleLogout}>Sair</button>
             </div>

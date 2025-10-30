@@ -65,6 +65,13 @@ export default function Login({ fixedRole }: { fixedRole?: Role }) {
                 <p className="text-sm text-slate-500 mt-1">Acesse sua conta</p>
               </div>
 
+              {/* Role tabs */}
+              <div className="grid grid-cols-3 gap-1 mb-4 bg-slate-100 p-1 rounded-md text-sm">
+                <Link to="/login/aluno" onClick={() => setRole('aluno')} className={`px-3 py-2 text-center rounded ${role === 'aluno' ? 'bg-white shadow font-medium' : 'text-slate-600 hover:text-slate-800'}`}>Aluno</Link>
+                <Link to="/login/professor" onClick={() => setRole('professor')} className={`px-3 py-2 text-center rounded ${role === 'professor' ? 'bg-white shadow font-medium' : 'text-slate-600 hover:text-slate-800'}`}>Professor</Link>
+                <Link to="/login/empresa" onClick={() => setRole('empresa')} className={`px-3 py-2 text-center rounded ${role === 'empresa' ? 'bg-white shadow font-medium' : 'text-slate-600 hover:text-slate-800'}`}>Empresa</Link>
+              </div>
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="label">Login</label>
@@ -88,7 +95,15 @@ export default function Login({ fixedRole }: { fixedRole?: Role }) {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <Link to="/cadastro-aluno" className="text-sky-600 hover:underline text-sm">Não tem uma conta? Cadastre-se</Link>
+                  {role === 'aluno' && (
+                    <Link to="/cadastro-aluno" className="text-sky-600 hover:underline text-sm">Novo por aqui? Cadastre-se</Link>
+                  )}
+                  {role === 'professor' && (
+                    <Link to="/cadastro-professor" className="text-sky-600 hover:underline text-sm">Sou professor — Cadastrar</Link>
+                  )}
+                  {role === 'empresa' && (
+                    <Link to="/empresa" className="text-sky-600 hover:underline text-sm">Área da empresa</Link>
+                  )}
                   <button type="submit" className="btn bg-sky-600 hover:bg-sky-700 text-white" disabled={loading}>
                     {loading ? 'Entrando...' : 'Entrar'}
                   </button>
