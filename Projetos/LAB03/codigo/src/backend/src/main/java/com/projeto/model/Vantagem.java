@@ -5,6 +5,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.FetchType;
 
 @Entity
 public class Vantagem {
@@ -18,6 +21,11 @@ public class Vantagem {
     private byte[] foto;
 
     private double custoMoedas;
+
+    // Empresa parceira que oferece a vantagem
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "empresa_id", nullable = true)
+    private EmpresaParceira empresaParceira;
 
     public Vantagem() {}
 
@@ -38,6 +46,9 @@ public class Vantagem {
 
     public double getCustoMoedas() { return custoMoedas; }
     public void setCustoMoedas(double custoMoedas) { this.custoMoedas = custoMoedas; }
+
+        public EmpresaParceira getEmpresaParceira() { return empresaParceira; }
+        public void setEmpresaParceira(EmpresaParceira empresaParceira) { this.empresaParceira = empresaParceira; }
 
     @Override
     public String toString() { return "Vantagem{descricao='" + descricao + "', custoMoedas=" + custoMoedas + '}'; }

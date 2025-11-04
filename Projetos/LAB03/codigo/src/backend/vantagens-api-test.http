@@ -1,0 +1,73 @@
+### Listar todas as vantagens (paginado)
+GET http://localhost:8080/api/vantagens?page=0&size=10&sortBy=descricao&direction=asc
+Content-Type: application/json
+
+### Listar segunda página
+GET http://localhost:8080/api/vantagens?page=1&size=5
+Content-Type: application/json
+
+### Buscar vantagem por ID
+GET http://localhost:8080/api/vantagens/1
+Content-Type: application/json
+
+### Criar vantagem (forma geral - com empresaId)
+POST http://localhost:8080/api/vantagens
+Content-Type: application/json
+
+{
+  "descricao": "10% de desconto em produtos",
+  "foto": null,
+  "custoMoedas": 50,
+  "empresaId": 1
+}
+
+### Criar vantagem para empresa específica (aninhado)
+POST http://localhost:8080/api/empresas/1/vantagens
+Content-Type: application/json
+
+{
+  "descricao": "Café grátis",
+  "foto": null,
+  "custoMoedas": 30
+}
+
+### Listar vantagens de empresa específica (paginado)
+GET http://localhost:8080/api/vantagens/empresa/1?page=0&size=10&sortBy=custoMoedas&direction=desc
+Content-Type: application/json
+
+### Listar vantagens de empresa (forma aninhada, paginado)
+GET http://localhost:8080/api/empresas/1/vantagens?page=0&size=5&sortBy=descricao&direction=asc
+Content-Type: application/json
+
+### Atualizar vantagem (forma geral)
+PUT http://localhost:8080/api/vantagens/1
+Content-Type: application/json
+
+{
+  "descricao": "15% de desconto em produtos",
+  "foto": null,
+  "custoMoedas": 60,
+  "empresaId": 1
+}
+
+### Atualizar vantagem da empresa (aninhado)
+PUT http://localhost:8080/api/empresas/1/vantagens/1
+Content-Type: application/json
+
+{
+  "descricao": "20% de desconto em produtos",
+  "foto": null,
+  "custoMoedas": 70
+}
+
+### Deletar vantagem
+DELETE http://localhost:8080/api/vantagens/1
+Content-Type: application/json
+
+### Deletar vantagem da empresa (aninhado)
+DELETE http://localhost:8080/api/empresas/1/vantagens/2
+Content-Type: application/json
+
+### Resgatar vantagem
+POST http://localhost:8080/api/vantagens/1/resgatar?alunoId=1
+Content-Type: application/json

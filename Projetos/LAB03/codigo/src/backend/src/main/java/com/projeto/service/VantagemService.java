@@ -2,6 +2,7 @@ package com.projeto.service;
 
 import com.projeto.dto.VantagemRequestDTO;
 import com.projeto.dto.VantagemResponseDTO;
+import com.projeto.dto.PageResponseDTO;
 import com.projeto.model.Vantagem;
 import com.projeto.model.Aluno;
 import com.projeto.model.Transacao;
@@ -11,6 +12,8 @@ import com.projeto.repository.AlunoRepository;
 import com.projeto.repository.TransacaoRepository;
 import com.projeto.repository.EmpresaParceiraRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,13 +39,11 @@ public class VantagemService {
     private EmpresaParceiraRepository empresaParceiraRepository;
 
     /**
-     * Lista todas as vantagens
+     * Lista todas as vantagens com paginação otimizada
      */
-    public List<VantagemResponseDTO> listarTodas() {
-        List<Vantagem> vantagens = vantagemRepository.findAll();
-        return vantagens.stream()
-                .map(v -> converterParaResponseDTO(v, null))
-                .collect(Collectors.toList());
+    public PageResponseDTO<VantagemResponseDTO> listarTodas(Pageable pageable) {
+        Page<Vantagem> page = vantagemRepository.findAll(pageable);
+        return convertToPageResponse(page);
     }
 
     /**
@@ -50,18 +51,73 @@ public class VantagemService {
      */
     public Optional<VantagemResponseDTO> buscarPorId(Long id) {
         Optional<Vantagem> vantagem = vantagemRepository.findById(id);
-        return vantagem.map(v -> converterParaResponseDTO(v, null));
+        return vantagem.map(this::converterParaResponseDTO);
     }
 
     /**
-     * Lista vantagens de uma empresa específica
-     * Nota: Como o modelo Vantagem não tem relação com Empresa,
-     * esta implementação retorna uma lista vazia por enquanto
+     * Lista vantagens de uma empresa específica com paginação otimizada
      */
-    public List<VantagemResponseDTO> listarPorEmpresa(Long empresaId) {
-        // TODO: Adicionar relação ManyToOne entre Vantagem e EmpresaParceira no modelo
-        // Por enquanto, retorna lista vazia
-        return List.of();
+    public PageResponseDTO<VantagemResponseDTO> listarPorEmpresa(Long empresaId, Pageable pageable) {
+        Page<Vantagem> page = vantagemRepository.findByEmpresaParceira_Id(empresaId, pageable);
+        return convertToPageResponse(page);
+    }
+
+    /**
+     * Cria uma nova vantagem já vinculada à empresa informada no caminho
+     */
+    @Transactional
+    public VantagemResponseDTO criarParaEmpresa(Long empresaId, VantagemRequestDTO requestDTO) {
+        Vantagem vantagem = new Vantagem();
+        vantagem.setDescricao(requestDTO.getDescricao());
+        vantagem.setCustoMoedas(requestDTO.getCustoMoedas());
+
+        if (requestDTO.getFoto() != null && !requestDTO.getFoto().isEmpty()) {
+            try {
+                byte[] fotoBytes = Base64.getDecoder().decode(requestDTO.getFoto());
+                vantagem.setFoto(fotoBytes);
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+
+        EmpresaParceira empresa = empresaParceiraRepository.findById(empresaId)
+                .orElseThrow(() -> new IllegalArgumentException("Empresa parceira não encontrada"));
+        vantagem.setEmpresaParceira(empresa);
+
+        Vantagem vantagemSalva = vantagemRepository.save(vantagem);
+        return converterParaResponseDTO(vantagemSalva);
+    }
+
+    /**
+     * Atualiza uma vantagem garantindo que pertence à empresa informada
+     */
+    @Transactional
+    public Optional<VantagemResponseDTO> atualizarParaEmpresa(Long empresaId, Long id, VantagemRequestDTO requestDTO) {
+        return vantagemRepository.findByIdAndEmpresaParceira_Id(id, empresaId).map(vantagem -> {
+            vantagem.setDescricao(requestDTO.getDescricao());
+            vantagem.setCustoMoedas(requestDTO.getCustoMoedas());
+
+            if (requestDTO.getFoto() != null && !requestDTO.getFoto().isEmpty()) {
+                try {
+                    byte[] fotoBytes = Base64.getDecoder().decode(requestDTO.getFoto());
+                    vantagem.setFoto(fotoBytes);
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+
+            Vantagem atualizado = vantagemRepository.save(vantagem);
+            return converterParaResponseDTO(atualizado);
+        });
+    }
+
+    /**
+     * Exclui uma vantagem garantindo que pertence à empresa informada
+     */
+    @Transactional
+    public boolean deletarParaEmpresa(Long empresaId, Long id) {
+        return vantagemRepository.findByIdAndEmpresaParceira_Id(id, empresaId).map(v -> {
+            vantagemRepository.delete(v);
+            return true;
+        }).orElse(false);
     }
 
     /**
@@ -84,15 +140,14 @@ public class VantagemService {
             }
         }
 
-        Vantagem vantagemSalva = vantagemRepository.save(vantagem);
-        
-        // Buscar empresa se fornecida
-        EmpresaParceira empresa = null;
+        // Vincular empresa se fornecida
         if (requestDTO.getEmpresaId() != null) {
-            empresa = empresaParceiraRepository.findById(requestDTO.getEmpresaId()).orElse(null);
+            empresaParceiraRepository.findById(requestDTO.getEmpresaId())
+                    .ifPresent(vantagem::setEmpresaParceira);
         }
-        
-        return converterParaResponseDTO(vantagemSalva, empresa);
+
+        Vantagem vantagemSalva = vantagemRepository.save(vantagem);
+        return converterParaResponseDTO(vantagemSalva);
     }
 
     /**
@@ -118,15 +173,15 @@ public class VantagemService {
                 }
             }
 
-            Vantagem vantagemAtualizada = vantagemRepository.save(vantagem);
-            
-            // Buscar empresa se fornecida
-            EmpresaParceira empresa = null;
+            // Atualizar vínculo com empresa se fornecido
             if (requestDTO.getEmpresaId() != null) {
-                empresa = empresaParceiraRepository.findById(requestDTO.getEmpresaId()).orElse(null);
+                EmpresaParceira empresa = empresaParceiraRepository
+                        .findById(requestDTO.getEmpresaId()).orElse(null);
+                vantagem.setEmpresaParceira(empresa);
             }
-            
-            return Optional.of(converterParaResponseDTO(vantagemAtualizada, empresa));
+
+            Vantagem vantagemAtualizada = vantagemRepository.save(vantagem);
+            return Optional.of(converterParaResponseDTO(vantagemAtualizada));
         }
         
         return Optional.empty();
@@ -178,17 +233,26 @@ public class VantagemService {
         transacao.setMotivo("Resgate de vantagem: " + vantagem.getDescricao());
         transacaoRepository.save(transacao);
 
-        return converterParaResponseDTO(vantagem, null);
+        return converterParaResponseDTO(vantagem);
     }
 
     /**
      * Converte Vantagem para VantagemResponseDTO
      */
-    private VantagemResponseDTO converterParaResponseDTO(Vantagem vantagem, EmpresaParceira empresa) {
+    private VantagemResponseDTO converterParaResponseDTO(Vantagem vantagem) {
         // Converter foto de byte array para Base64
         String fotoBase64 = null;
         if (vantagem.getFoto() != null && vantagem.getFoto().length > 0) {
             fotoBase64 = Base64.getEncoder().encodeToString(vantagem.getFoto());
+        }
+
+        EmpresaParceira empresa = vantagem.getEmpresaParceira();
+        String empresaNome = null;
+        if (empresa != null) {
+            // Preferir nomeFantasia quando disponível; caso contrário, usar nome herdado de Usuario
+            empresaNome = (empresa.getNomeFantasia() != null && !empresa.getNomeFantasia().isBlank())
+                    ? empresa.getNomeFantasia()
+                    : empresa.getNome();
         }
 
         return new VantagemResponseDTO(
@@ -197,7 +261,27 @@ public class VantagemService {
                 fotoBase64,
                 vantagem.getCustoMoedas(),
                 empresa != null ? empresa.getId() : null,
-                empresa != null ? empresa.getNome() : null
+                empresaNome
         );
+    }
+
+    /**
+     * Converte Page do Spring Data para PageResponseDTO customizado
+     */
+    private PageResponseDTO<VantagemResponseDTO> convertToPageResponse(Page<Vantagem> page) {
+        List<VantagemResponseDTO> items = page.getContent().stream()
+            .map(this::converterParaResponseDTO)
+            .collect(Collectors.toList());
+        
+        PageResponseDTO.PaginationMetadata metadata = new PageResponseDTO.PaginationMetadata(
+            page.getNumber(),           // currentPage
+            page.getTotalPages(),        // totalPages
+            page.getTotalElements(),     // totalItems
+            page.getSize(),              // pageSize
+            page.hasNext(),              // hasNext
+            page.hasPrevious()           // hasPrevious
+        );
+        
+        return new PageResponseDTO<>(items, metadata);
     }
 }
