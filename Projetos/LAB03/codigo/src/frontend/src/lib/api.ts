@@ -66,6 +66,22 @@ export type VantagemDTO = {
   descricao: string
   foto?: string
   custoMoedas: number
+  empresaId?: number
+  empresaNome?: string
+}
+
+export type PaginationMetadata = {
+  currentPage: number
+  totalPages: number
+  totalItems: number
+  pageSize: number
+  hasNext: boolean
+  hasPrevious: boolean
+}
+
+export type PageResponse<T> = {
+  items: T[]
+  pagination: PaginationMetadata
 }
 
 export type LoginRequestDTO = {
@@ -286,20 +302,107 @@ export const professoresAPI = {
 
 // Vantagens API (empresa) - fallback to demoStore when backend is unavailable
 export const vantagensAPI = {
-  async listarPorEmpresa(empresaId: number): Promise<VantagemDTO[]> {
+  async listar(params?: { page?: number; size?: number; sortBy?: string; direction?: 'asc' | 'desc' }): Promise<PageResponse<VantagemDTO>> {
     try {
-      return await apiCall<VantagemDTO[]>(`/api/empresas/${empresaId}/vantagens`)
+      const queryParams = new URLSearchParams()
+      if (params?.page !== undefined) queryParams.append('page', params.page.toString())
+      if (params?.size !== undefined) queryParams.append('size', params.size.toString())
+      if (params?.sortBy) queryParams.append('sortBy', params.sortBy)
+      if (params?.direction) queryParams.append('direction', params.direction)
+      
+      const query = queryParams.toString()
+      return await apiCall<PageResponse<VantagemDTO>>(`/api/vantagens${query ? `?${query}` : ''}`)
     } catch {
       const { demoStore } = await import('./store')
       const db = demoStore.getDB()
-      // demo advantages shape is arbitrary; filter by empresaId if present
-      const all = db.advantages || []
-      return all.filter((v: any) => !v.empresaId || v.empresaId === empresaId).map((v: any, idx: number) => ({
+      const all = (db.advantages || []).map((v: any, idx: number) => ({
         id: v.id ?? idx + 1,
         descricao: v.descricao || v.titulo || 'Vantagem',
         foto: v.foto,
         custoMoedas: v.custoMoedas ?? v.preco ?? 0,
+        empresaId: v.empresaId,
+        empresaNome: v.empresaNome,
       }))
+      
+      const page = params?.page ?? 0
+      const size = params?.size ?? 10
+      const start = page * size
+      const items = all.slice(start, start + size)
+      
+      return {
+        items,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(all.length / size),
+          totalItems: all.length,
+          pageSize: size,
+          hasNext: (page + 1) * size < all.length,
+          hasPrevious: page > 0,
+        },
+      }
+    }
+  },
+
+  async listarPorEmpresa(empresaId: number, params?: { page?: number; size?: number; sortBy?: string; direction?: 'asc' | 'desc' }): Promise<PageResponse<VantagemDTO>> {
+    try {
+      const queryParams = new URLSearchParams()
+      if (params?.page !== undefined) queryParams.append('page', params.page.toString())
+      if (params?.size !== undefined) queryParams.append('size', params.size.toString())
+      if (params?.sortBy) queryParams.append('sortBy', params.sortBy)
+      if (params?.direction) queryParams.append('direction', params.direction)
+      
+      const query = queryParams.toString()
+      return await apiCall<PageResponse<VantagemDTO>>(`/api/empresas/${empresaId}/vantagens${query ? `?${query}` : ''}`)
+    } catch {
+      const { demoStore } = await import('./store')
+      const db = demoStore.getDB()
+      // demo advantages shape is arbitrary; filter by empresaId if present
+      const all = (db.advantages || [])
+        .filter((v: any) => !v.empresaId || v.empresaId === empresaId)
+        .map((v: any, idx: number) => ({
+          id: v.id ?? idx + 1,
+          descricao: v.descricao || v.titulo || 'Vantagem',
+          foto: v.foto,
+          custoMoedas: v.custoMoedas ?? v.preco ?? 0,
+          empresaId: v.empresaId,
+          empresaNome: v.empresaNome,
+        }))
+      
+      const page = params?.page ?? 0
+      const size = params?.size ?? 10
+      const start = page * size
+      const items = all.slice(start, start + size)
+      
+      return {
+        items,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(all.length / size),
+          totalItems: all.length,
+          pageSize: size,
+          hasNext: (page + 1) * size < all.length,
+          hasPrevious: page > 0,
+        },
+      }
+    }
+  },
+
+  async buscarPorId(id: number): Promise<VantagemDTO> {
+    try {
+      return await apiCall<VantagemDTO>(`/api/vantagens/${id}`)
+    } catch {
+      const { demoStore } = await import('./store')
+      const db = demoStore.getDB()
+      const v = (db.advantages || []).find((a: any) => a.id === id)
+      if (!v) throw new Error('Vantagem não encontrada')
+      return {
+        id: v.id,
+        descricao: v.descricao || v.titulo || 'Vantagem',
+        foto: v.foto,
+        custoMoedas: v.custoMoedas ?? v.preco ?? 0,
+        empresaId: v.empresaId,
+        empresaNome: v.empresaNome,
+      }
     }
   },
 
@@ -318,9 +421,28 @@ export const vantagensAPI = {
     }
   },
 
-  async deletar(id: number): Promise<void> {
+  async atualizar(empresaId: number, id: number, data: Partial<VantagemDTO>): Promise<VantagemDTO> {
     try {
-      return await apiCall<void>(`/api/vantagens/${id}`, { method: 'DELETE' })
+      return await apiCall<VantagemDTO>(`/api/empresas/${empresaId}/vantagens/${id}`, { 
+        method: 'PUT', 
+        body: JSON.stringify(data) 
+      })
+    } catch {
+      const { demoStore } = await import('./store')
+      const db = demoStore.getDB()
+      const idx = (db.advantages || []).findIndex((a: any) => a.id === id)
+      if (idx >= 0) {
+        db.advantages[idx] = { ...db.advantages[idx], ...data }
+        localStorage.setItem('lab03-demo-db', JSON.stringify(db))
+        return db.advantages[idx]
+      }
+      throw new Error('Vantagem não encontrada')
+    }
+  },
+
+  async deletar(empresaId: number, id: number): Promise<void> {
+    try {
+      return await apiCall<void>(`/api/empresas/${empresaId}/vantagens/${id}`, { method: 'DELETE' })
     } catch {
       const { demoStore } = await import('./store')
       const db = demoStore.getDB()
@@ -328,5 +450,11 @@ export const vantagensAPI = {
       localStorage.setItem('lab03-demo-db', JSON.stringify(db))
       return
     }
-  }
+  },
+
+  async resgatar(vantagemId: number, alunoId: number): Promise<VantagemDTO> {
+    return await apiCall<VantagemDTO>(`/api/vantagens/${vantagemId}/resgatar/${alunoId}`, {
+      method: 'POST',
+    })
+  },
 }

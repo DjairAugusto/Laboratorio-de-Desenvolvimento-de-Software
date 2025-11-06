@@ -78,67 +78,6 @@ public class VantagemController {
             return ResponseEntity.ok(response);
       }
 
-      // Rotas aninhadas sob empresa parceira (escopo/ownership explícito)
-
-      /**
-       * Lista vantagens de uma empresa (forma alternativa, aninhada) com paginação
-       * GET /api/empresas/{empresaId}/vantagens?page=0&size=10
-       */
-      @GetMapping(path = "/empresas/{empresaId}/vantagens")
-      public ResponseEntity<PageResponseDTO<VantagemResponseDTO>> listarPorEmpresaNested(
-            @PathVariable Long empresaId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "id") String sortBy,
-            @RequestParam(defaultValue = "asc") String direction) {
-            
-            Sort.Direction sortDirection = direction.equalsIgnoreCase("desc") 
-                  ? Sort.Direction.DESC 
-                  : Sort.Direction.ASC;
-            Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
-            PageResponseDTO<VantagemResponseDTO> response = vantagemService.listarPorEmpresa(empresaId, pageable);
-            return ResponseEntity.ok(response);
-      }
-
-      /**
-       * Cria uma vantagem já vinculada à empresa do path
-       * POST /api/empresas/{empresaId}/vantagens
-       */
-      @PostMapping(path = "/empresas/{empresaId}/vantagens")
-      public ResponseEntity<VantagemResponseDTO> criarParaEmpresa(
-                  @PathVariable Long empresaId,
-                  @Valid @RequestBody VantagemRequestDTO dto) {
-            VantagemResponseDTO vantagem = vantagemService.criarParaEmpresa(empresaId, dto);
-            return ResponseEntity.status(HttpStatus.CREATED).body(vantagem);
-      }
-
-      /**
-       * Atualiza uma vantagem garantindo que pertence à empresa
-       * PUT /api/empresas/{empresaId}/vantagens/{id}
-       */
-      @PutMapping(path = "/empresas/{empresaId}/vantagens/{id}")
-      public ResponseEntity<VantagemResponseDTO> atualizarParaEmpresa(
-                  @PathVariable Long empresaId,
-                  @PathVariable Long id,
-                  @Valid @RequestBody VantagemRequestDTO dto) {
-            Optional<VantagemResponseDTO> vantagem = vantagemService.atualizarParaEmpresa(empresaId, id, dto);
-            return vantagem.map(ResponseEntity::ok)
-                        .orElseGet(() -> ResponseEntity.notFound().build());
-      }
-
-      /**
-       * Exclui uma vantagem garantindo que pertence à empresa
-       * DELETE /api/empresas/{empresaId}/vantagens/{id}
-       */
-      @DeleteMapping(path = "/empresas/{empresaId}/vantagens/{id}")
-      public ResponseEntity<Void> deletarParaEmpresa(
-                  @PathVariable Long empresaId,
-                  @PathVariable Long id) {
-            boolean deletado = vantagemService.deletarParaEmpresa(empresaId, id);
-            if (deletado) return ResponseEntity.noContent().build();
-            return ResponseEntity.notFound().build();
-      }
-
       /**
        * Cria uma nova vantagem
        * POST /api/vantagens

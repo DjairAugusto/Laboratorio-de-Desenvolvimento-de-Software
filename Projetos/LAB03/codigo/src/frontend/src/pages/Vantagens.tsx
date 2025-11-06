@@ -1,39 +1,29 @@
 import PageHeader from '../components/PageHeader'
 import { useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
-import { useToast } from '../hooks/use-toast'
-
-type Vantagem = {
-  id: number
-  descricao: string
-  custoMoedas: number
-  foto?: string
-}
+import { useState } from 'react'
+import { useVantagens } from '../hooks/useVantagens'
+import { useAuth } from '../context/Auth'
 
 export default function Vantagens() {
   const navigate = useNavigate()
-  const { error } = useToast()
-  const [vantagens, setVantagens] = useState<Vantagem[]>([])
-  const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
   const [q, setQ] = useState('')
-
-  useEffect(() => {
-    async function loadVantagens() {
-      try {
-        // Placeholder sample data until backend is available
-        setVantagens([
-          { id: 1, descricao: 'Curso Online - 20% off', custoMoedas: 500, foto: '' },
-          { id: 2, descricao: 'Vale-livro R$50', custoMoedas: 150, foto: '' },
-          { id: 3, descricao: 'Assinatura Premium 1 mês', custoMoedas: 1200, foto: '' },
-        ])
-      } catch (err) {
-        error('Erro ao carregar vantagens')
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadVantagens()
-  }, [error])
+  
+  // Carrega todas as vantagens disponíveis com paginação
+  const { 
+    vantagens, 
+    loading, 
+    pagination, 
+    nextPage, 
+    previousPage, 
+    goToPage 
+  } = useVantagens({ 
+    page: 0, 
+    size: 12, 
+    sortBy: 'custoMoedas',
+    direction: 'asc',
+    autoLoad: true 
+  })
 
   if (loading) return <div className="text-center py-8">Carregando...</div>
 
@@ -54,23 +44,80 @@ export default function Vantagens() {
         ) : (
           filtered.map(v => (
             <div key={v.id} className="card overflow-hidden">
-              <div className="h-40 bg-gradient-to-br from-white to-slate-100 flex items-center justify-center text-slate-400">{v.foto ? <img src={v.foto} alt={v.descricao} className="w-full h-full object-cover" /> : 'Imagem'}</div>
+              <div className="h-40 bg-gradient-to-br from-white to-slate-100 flex items-center justify-center text-slate-400">
+                {v.foto ? (
+                  <img 
+                    src={`data:image/jpeg;base64,${v.foto}`} 
+                    alt={v.descricao} 
+                    className="w-full h-full object-cover" 
+                  />
+                ) : (
+                  'Imagem'
+                )}
+              </div>
               <div className="p-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="font-medium">{v.descricao}</div>
-                    <div className="text-sm text-slate-500">{v.custoMoedas} moedas</div>
+                    <div className="font-medium line-clamp-2">{v.descricao}</div>
+                    {v.empresaNome && (
+                      <div className="text-xs text-slate-400 mt-1">{v.empresaNome}</div>
+                    )}
+                    <div className="text-sm text-slate-500 mt-1">{v.custoMoedas} moedas</div>
                   </div>
                 </div>
                 <div className="mt-4 flex gap-2">
-                  <button className="btn" onClick={() => navigate(`/vantagens/${v.id}`)}>Ver detalhes</button>
-                  <button className="btn bg-sky-600 text-white" onClick={() => {/* redeem flow */}}>Resgatar</button>
+                  <button className="btn flex-1" onClick={() => navigate(`/vantagens/${v.id}`)}>Ver detalhes</button>
+                  <button 
+                    className="btn bg-sky-600 text-white flex-1 hover:bg-sky-700" 
+                    onClick={() => navigate(`/vantagens/${v.id}`)}
+                  >
+                    Resgatar
+                  </button>
                 </div>
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* Paginação */}
+      {pagination && pagination.totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-center gap-2">
+          <button 
+            className="btn" 
+            onClick={previousPage}
+            disabled={!pagination.hasPrevious}
+          >
+            Anterior
+          </button>
+          
+          <div className="flex gap-1">
+            {Array.from({ length: pagination.totalPages }, (_, i) => i).map(pageNum => (
+              <button
+                key={pageNum}
+                className={`btn ${pagination.currentPage === pageNum ? 'bg-sky-600 text-white' : ''}`}
+                onClick={() => goToPage(pageNum)}
+              >
+                {pageNum + 1}
+              </button>
+            ))}
+          </div>
+          
+          <button 
+            className="btn" 
+            onClick={nextPage}
+            disabled={!pagination.hasNext}
+          >
+            Próxima
+          </button>
+        </div>
+      )}
+
+      {pagination && (
+        <div className="text-center text-sm text-slate-500 mt-4">
+          Mostrando {filtered.length} de {pagination.totalItems} vantagens
+        </div>
+      )}
     </div>
   )
 }

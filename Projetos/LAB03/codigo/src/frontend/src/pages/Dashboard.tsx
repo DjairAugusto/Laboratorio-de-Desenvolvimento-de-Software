@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { alunosAPI } from '../lib/api'
 import { useAuth } from '../context/Auth'
 import { useToast } from '../hooks/use-toast'
+import { useVantagens } from '../hooks/useVantagens'
 
 type Transaction = {
   id: number
@@ -12,21 +13,22 @@ type Transaction = {
   data: string
 }
 
-type Vantagem = {
-  id: number
-  descricao: string
-  custoMoedas: number
-  foto?: string
-}
-
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { error } = useToast()
   const [aluno, setAluno] = useState<any>(null)
   const [transacoes, setTransacoes] = useState<Transaction[]>([])
-  const [vantagens, setVantagens] = useState<Vantagem[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // Hook para carregar vantagens em destaque (primeiras 6)
+  const { vantagens, loading: loadingVantagens } = useVantagens({ 
+    page: 0, 
+    size: 6, 
+    sortBy: 'custoMoedas',
+    direction: 'asc',
+    autoLoad: true 
+  })
 
   useEffect(() => {
     async function loadData() {
@@ -45,11 +47,6 @@ export default function Dashboard() {
           { id: 1, titulo: 'Reconhecimento: Projeto X', valor: 250, autor: 'Prof. João', data: '2025-10-12' },
           { id: 2, titulo: 'Resgate: Curso Online', valor: -300, data: '2025-10-03' },
         ])
-
-        setVantagens([
-          { id: 1, descricao: 'Curso Online - 20% off', custoMoedas: 500, foto: '' },
-          { id: 2, descricao: 'Vale-livro R$50', custoMoedas: 150, foto: '' },
-        ])
       } catch (err) {
         error('Erro ao carregar dados do dashboard')
       } finally {
@@ -59,7 +56,7 @@ export default function Dashboard() {
     loadData()
   }, [error, user])
 
-  if (loading) return <div className="text-center py-8">Carregando...</div>
+  if (loading || loadingVantagens) return <div className="text-center py-8">Carregando...</div>
   if (!aluno) return <div className="text-center py-8">Nenhum aluno encontrado</div>
 
   const saldoTotal = aluno.saldoMoedas || 0
@@ -156,13 +153,37 @@ export default function Dashboard() {
             ) : (
               vantagens.map((v) => (
                 <div className="card overflow-hidden" key={v.id}>
-                  <div className="h-36 bg-gradient-to-br from-slate-100 to-white flex items-center justify-center text-slate-400">{v.foto ? <img src={v.foto} alt={v.descricao} className="w-full h-full object-cover" /> : 'Imagem'}</div>
+                  <div className="h-36 bg-gradient-to-br from-slate-100 to-white flex items-center justify-center text-slate-400">
+                    {v.foto ? (
+                      <img 
+                        src={`data:image/jpeg;base64,${v.foto}`} 
+                        alt={v.descricao} 
+                        className="w-full h-full object-cover" 
+                      />
+                    ) : (
+                      'Imagem'
+                    )}
+                  </div>
                   <div className="p-4">
-                    <div className="font-medium">{v.descricao}</div>
+                    <div className="font-medium line-clamp-2 mb-1">{v.descricao}</div>
+                    {v.empresaNome && (
+                      <div className="text-xs text-slate-400 mb-2">{v.empresaNome}</div>
+                    )}
                     <div className="text-sm text-slate-500 mb-3">{v.custoMoedas} moedas</div>
                     <div className="flex gap-2">
-                      <button className="btn" onClick={() => navigate(`/vantagens/${v.id}`)}>Ver detalhes</button>
-                      <button className="btn bg-sky-600 text-white" onClick={() => {/* quick redeem could be added */}}>Resgatar</button>
+                      <button 
+                        className="btn flex-1 text-sm py-2" 
+                        onClick={() => navigate(`/vantagens/${v.id}`)}
+                      >
+                        Ver detalhes
+                      </button>
+                      <button 
+                        className="btn bg-sky-600 text-white flex-1 text-sm py-2 hover:bg-sky-700" 
+                        onClick={() => navigate(`/vantagens/${v.id}`)}
+                        disabled={saldoTotal < v.custoMoedas}
+                      >
+                        Resgatar
+                      </button>
                     </div>
                   </div>
                 </div>
