@@ -1,76 +1,112 @@
-import PageHeader from '../components/PageHeader'
-import { useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
-import { useToast } from '../hooks/use-toast'
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { vantagensService, Vantagem } from '../services/api';
 
-type Vantagem = {
-  id: number
-  descricao: string
-  custoMoedas: number
-  foto?: string
+function PageHeader({ title, action }: { title: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between mb-4">
+      <h2 className="text-lg font-semibold">{title}</h2>
+      {action}
+    </div>
+  );
+}
+
+function AdvantageCard({ item, onDetails }: { item: Vantagem; onDetails?: (id: number) => void }) {
+  return (
+    <div className="card overflow-hidden">
+      <div className="h-36 bg-slate-100">
+        {item.foto ? (
+          <img src={`data:image/jpeg;base64,${item.foto}`} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="h-full w-full flex items-center justify-center text-slate-400">
+            Imagem
+          </div>
+        )}
+      </div>
+      <div className="p-3">
+        <div className="font-medium mb-1 truncate">{item.descricao}</div>
+        <div className="text-sm text-slate-600 mb-1">{item.custoMoedas} moedas</div>
+        {item.empresaNome && (
+          <div className="text-xs text-slate-500 mb-3">Por: {item.empresaNome}</div>
+        )}
+        <button
+          className="btn w-full"
+          onClick={() => onDetails?.(item.id)}
+        >
+          Ver detalhes
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function Vantagens() {
-  const navigate = useNavigate()
-  const { error } = useToast()
-  const [vantagens, setVantagens] = useState<Vantagem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [q, setQ] = useState('')
+  const navigate = useNavigate();
+  const [vantagens, setVantagens] = useState<Vantagem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadVantagens() {
-      try {
-        // Placeholder sample data until backend is available
-        setVantagens([
-          { id: 1, descricao: 'Curso Online - 20% off', custoMoedas: 500, foto: '' },
-          { id: 2, descricao: 'Vale-livro R$50', custoMoedas: 150, foto: '' },
-          { id: 3, descricao: 'Assinatura Premium 1 mês', custoMoedas: 1200, foto: '' },
-        ])
-      } catch (err) {
-        error('Erro ao carregar vantagens')
-      } finally {
-        setLoading(false)
-      }
+    carregarVantagens();
+  }, []);
+
+  async function carregarVantagens() {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await vantagensService.listarTodas(0, 20);
+      setVantagens(response.data.items);
+      console.log('📦 Vantagens carregadas:', response.data.items.length);
+    } catch (err: any) {
+      console.error('❌ Erro ao carregar vantagens:', err);
+      setError(err.response?.data?.message || 'Erro ao carregar vantagens');
+    } finally {
+      setLoading(false);
     }
-    loadVantagens()
-  }, [error])
+  }
 
-  if (loading) return <div className="text-center py-8">Carregando...</div>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-slate-500">Carregando vantagens...</div>
+      </div>
+    );
+  }
 
-  const filtered = vantagens.filter(v => v.descricao.toLowerCase().includes(q.toLowerCase()))
+  if (error) {
+    return (
+      <div className="card p-6 bg-red-50 border-red-200">
+        <div className="text-red-800 font-medium mb-2">Erro ao Carregar Vantagens</div>
+        <div className="text-red-600 text-sm mb-4">{error}</div>
+        <button onClick={carregarVantagens} className="btn bg-red-600 hover:bg-red-700">
+          Tentar Novamente
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <PageHeader title="Vantagens" action={<div className="text-sm text-slate-500">Marketplace</div>} />
-
-      <div className="mb-4 flex items-center gap-3">
-        <input className="input flex-1" placeholder="Buscar vantagens..." value={q} onChange={e => setQ(e.target.value)} />
-        <button className="btn" onClick={() => setQ('')}>Limpar</button>
-      </div>
-
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.length === 0 ? (
-          <div className="col-span-3 text-center text-slate-500 py-8">Nenhuma vantagem disponível no momento</div>
-        ) : (
-          filtered.map(v => (
-            <div key={v.id} className="card overflow-hidden">
-              <div className="h-40 bg-gradient-to-br from-white to-slate-100 flex items-center justify-center text-slate-400">{v.foto ? <img src={v.foto} alt={v.descricao} className="w-full h-full object-cover" /> : 'Imagem'}</div>
-              <div className="p-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="font-medium">{v.descricao}</div>
-                    <div className="text-sm text-slate-500">{v.custoMoedas} moedas</div>
-                  </div>
-                </div>
-                <div className="mt-4 flex gap-2">
-                  <button className="btn" onClick={() => navigate(`/vantagens/${v.id}`)}>Ver detalhes</button>
-                  <button className="btn bg-sky-600 text-white" onClick={() => {/* redeem flow */}}>Resgatar</button>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+      <PageHeader 
+        title="Vantagens" 
+        action={<span className="text-sm text-slate-500">Marketplace</span>} 
+      />
+      
+      {vantagens.length === 0 ? (
+        <div className="card p-12 text-center">
+          <div className="text-slate-500">Nenhuma vantagem disponível no momento</div>
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {vantagens.map((vantagem) => (
+            <AdvantageCard
+              key={vantagem.id}
+              item={vantagem}
+              onDetails={(id) => navigate(`/vantagens/${id}`)}
+            />
+          ))}
+        </div>
+      )}
     </div>
-  )
+  );
 }
