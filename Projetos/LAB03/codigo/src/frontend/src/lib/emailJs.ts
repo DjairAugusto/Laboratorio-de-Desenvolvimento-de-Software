@@ -37,6 +37,7 @@ export async function sendCoinTransferEmails(payload: {
   const forSenderVars = {
     name: payload.studentName,
     email: payload.studentEmail,
+    student_email: payload.studentEmail, // compat: caso o template use {{student_email}}
     title: 'Você recebeu moedas! 🎉',
     message: `Você recebeu ${payload.valor} moedas de ${payload.professorName}. Motivo: ${payload.motivo || '—'}`,
     valor: payload.valor,
