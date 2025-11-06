@@ -20,17 +20,17 @@ export default function ProfessorDashboard() {
 
   async function loadDashboardData() {
     if (!user || user.role !== 'professor') return
-    
+
     try {
       setLoading(true)
-      
+
       // Load professor data to get current balance
       const prof = await professoresAPI.buscarPorId(user.id)
       setSaldoAtual(prof.saldoMoedas || 0)
 
       // Load professor's transactions
       const transacoes = await transacoesAPI.listarPorProfessor(user.id)
-      
+
       // Calculate total sent (only ENVIO type)
       const envios = transacoes.filter(t => t.tipo === 'ENVIO')
       const total = envios.reduce((acc, t) => acc + t.valor, 0)

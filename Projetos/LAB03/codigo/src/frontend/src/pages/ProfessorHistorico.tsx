@@ -54,7 +54,7 @@ export default function ProfessorHistorico() {
   const totalEnviado = transacoes
     .filter(t => t.tipo === 'ENVIO')
     .reduce((a, b) => a + b.valor, 0)
-  
+
   const alunosAtendidos = new Set(
     transacoes.filter(t => t.tipo === 'ENVIO').map(x => x.usuarioId)
   ).size

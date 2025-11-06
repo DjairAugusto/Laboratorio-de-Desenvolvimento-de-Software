@@ -17,7 +17,7 @@ export default function VantagemDetalhe() {
   useEffect(() => {
     async function loadVantagem() {
       if (!id) return
-      
+
       try {
         const data = await vantagensAPI.buscarPorId(parseInt(id))
         setVantagem(data)
@@ -86,8 +86,8 @@ export default function VantagemDetalhe() {
                 )}
                 <div className="flex gap-2 mb-6">
                   {user?.role === 'aluno' ? (
-                    <button 
-                      className="btn btn-lg" 
+                    <button
+                      className="btn btn-lg"
                       onClick={handleRedeem}
                       disabled={resgatando}
                     >
