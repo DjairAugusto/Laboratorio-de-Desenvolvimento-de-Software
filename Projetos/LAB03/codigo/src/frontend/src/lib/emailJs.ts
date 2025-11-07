@@ -1,9 +1,10 @@
 import emailjs from '@emailjs/browser'
 import EMAILJS_CONFIG from '../config/emailJsConfig'
 
-// Helper to send two emails when a professor sends coins to a student:
-//  - FOR_ME: notification to admin/owner with details
-//  - FOR_SENDER: confirmation to the student who received the coins
+// Helper to send emails when a professor sends coins to a student:
+//  - FOR_ME: notification to admin/owner with details (optional)
+//  - FOR_SENDER: confirmation to the student who received the coins (recommended)
+//  - FOR_PROFESSOR: confirmation to the professor who enviou as moedas (requested)
 export async function sendCoinTransferEmails(payload: {
   professorName: string
   professorEmail?: string
@@ -13,7 +14,7 @@ export async function sendCoinTransferEmails(payload: {
   motivo?: string
   time?: string
 }) {
-  const { SERVICE_ID, TEMPLATE_ID_FOR_ME, TEMPLATE_ID_FOR_SENDER, PUBLIC_KEY } = EMAILJS_CONFIG
+  const { SERVICE_ID, TEMPLATE_ID_FOR_ME, TEMPLATE_ID_FOR_SENDER, TEMPLATE_ID_FOR_PROFESSOR, PUBLIC_KEY } = EMAILJS_CONFIG
   const time = payload.time || new Date().toLocaleString()
 
   if (!SERVICE_ID || !PUBLIC_KEY) {
@@ -44,6 +45,19 @@ export async function sendCoinTransferEmails(payload: {
     time,
   }
 
+  const forProfessorVars = {
+    name: payload.professorName,
+    email: payload.professorEmail || '',
+    professor_name: payload.professorName,
+    professor_email: payload.professorEmail || '',
+    student_name: payload.studentName,
+    student_email: payload.studentEmail,
+    title: 'Confirmação de envio de moedas',
+    message: `Você enviou ${payload.valor} moedas para ${payload.studentName}. Motivo: ${payload.motivo || '—'}`,
+    valor: payload.valor,
+    time,
+  }
+
   try {
     if (TEMPLATE_ID_FOR_ME) {
       emailjs.send(SERVICE_ID, TEMPLATE_ID_FOR_ME, forMeVars, PUBLIC_KEY).then(
@@ -64,5 +78,16 @@ export async function sendCoinTransferEmails(payload: {
     }
   } catch (e) {
     console.error('Failed to send EmailJS FOR_SENDER', e)
+  }
+
+  try {
+    if (TEMPLATE_ID_FOR_PROFESSOR && (forProfessorVars.email || forProfessorVars.professor_email)) {
+      emailjs.send(SERVICE_ID, TEMPLATE_ID_FOR_PROFESSOR, forProfessorVars, PUBLIC_KEY).then(
+        () => console.debug('EmailJS: FOR_PROFESSOR sent'),
+        (err) => console.error('EmailJS error (FOR_PROFESSOR):', err)
+      )
+    }
+  } catch (e) {
+    console.error('Failed to send EmailJS FOR_PROFESSOR', e)
   }
 }
