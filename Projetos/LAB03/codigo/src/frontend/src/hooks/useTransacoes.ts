@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { transacoesAPI, TransacaoDTO } from '../lib/api'
+import { transacaoAPI, TransacaoDTO } from '../lib/api'
 
 export function useTransacoesProfessor(professorId: number | undefined) {
   const [data, setData] = useState<TransacaoDTO[]>([])
@@ -13,7 +13,7 @@ export function useTransacoesProfessor(professorId: number | undefined) {
     setError(null)
     
     try {
-      const transacoes = await transacoesAPI.listarPorProfessor(professorId)
+      const transacoes = await transacaoAPI.listarPorTipo('ENVIO')
       setData(transacoes)
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Erro ao buscar transações'))
@@ -41,7 +41,7 @@ export function useTransacoesAluno(alunoId: number | undefined) {
     setError(null)
     
     try {
-      const transacoes = await transacoesAPI.listarPorAluno(alunoId)
+      const transacoes = await transacaoAPI.listarPorAluno(alunoId)
       setData(transacoes)
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Erro ao buscar transações'))

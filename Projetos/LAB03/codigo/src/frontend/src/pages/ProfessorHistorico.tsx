@@ -1,31 +1,57 @@
 import PageHeader from '../components/PageHeader'
-import { useMemo, useState } from 'react'
-
-type TxProf = { id: number; data: string; aluno: string; valor: number; motivo: string }
+import { useAuth } from '../context/Auth'
+import { useMemo, useState, useEffect } from 'react'
+import { transacaoAPI, TransacaoDTO } from '../lib/api'
 
 export default function ProfessorHistorico() {
-  // Mock até integração com backend
-  const data: TxProf[] = [
-    { id: 1, data: '2025-10-01', aluno: 'Ana', valor: 100, motivo: 'Participação em aula' },
-    { id: 2, data: '2025-10-04', aluno: 'Bruno', valor: 150, motivo: 'Projeto de pesquisa' },
-    { id: 3, data: '2025-10-10', aluno: 'Carla', valor: 200, motivo: 'Monitoria' },
-  ]
+  const { user } = useAuth()
 
+  const [transacoes, setTransacoes] = useState<TransacaoDTO[]>([])
+  const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
   const [de, setDe] = useState('')
   const [ate, setAte] = useState('')
 
+  useEffect(() => {
+    async function carregarEnvios() {
+      try {
+        setLoading(true)
+        let txs: TransacaoDTO[] = []
+        
+        if (user && user.id) {
+          // Carregar envios de moedas feitos por este professor
+          txs = await transacaoAPI.listarEnviosProfessor(user.id)
+        }
+        
+        setTransacoes(txs)
+      } catch (err) {
+        console.error('Erro ao carregar envios:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    carregarEnvios()
+  }, [user])
+
   const filtradas = useMemo(() => {
-    return data.filter(t => {
-      if (q && !(`${t.aluno} ${t.motivo}`.toLowerCase().includes(q.toLowerCase()))) return false
+    return transacoes.filter(t => {
+      if (q && !(`${t.usuario.nome} ${t.motivo}`.toLowerCase().includes(q.toLowerCase()))) return false
       if (de && t.data < de) return false
       if (ate && t.data > ate) return false
       return true
     })
-  }, [data, q, de, ate])
+  }, [transacoes, q, de, ate])
 
-  const totalEnviado = data.reduce((a, b) => a + b.valor, 0)
-  const alunosAtendidos = new Set(data.map(x => x.aluno)).size
+  const totalEnviado = transacoes.reduce((a, b) => a + b.valor, 0)
+  const alunosAtendidos = new Set(transacoes.map(x => x.usuario.nome)).size
+
+  const formatData = (dataStr: string) => {
+    const data = new Date(dataStr)
+    return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  }
+
+  if (!user) return <div className="text-center py-8">Faça login para ver seu histórico.</div>
 
   return (
     <div className="space-y-6">
@@ -67,13 +93,15 @@ export default function ProfessorHistorico() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filtradas.length === 0 ? (
+              {loading ? (
+                <tr><td colSpan={4} className="py-6 text-center text-slate-500">Carregando...</td></tr>
+              ) : filtradas.length === 0 ? (
                 <tr><td colSpan={4} className="py-6 text-center text-slate-500">Nenhuma transferência encontrada</td></tr>
               ) : (
                 filtradas.map(t => (
                   <tr key={t.id}>
-                    <td className="py-2">{t.data}</td>
-                    <td>{t.aluno}</td>
+                    <td className="py-2">{formatData(t.data)}</td>
+                    <td>{t.usuario.nome}</td>
                     <td>{t.motivo}</td>
                     <td className="text-right text-emerald-600">+{t.valor}</td>
                   </tr>

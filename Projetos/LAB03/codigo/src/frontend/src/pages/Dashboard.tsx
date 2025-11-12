@@ -1,24 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { alunosAPI } from '../lib/api'
+import { alunosAPI, transacaoAPI, TransacaoDTO } from '../lib/api'
 import { useAuth } from '../context/Auth'
 import { useToast } from '../hooks/use-toast'
 import { useVantagens } from '../hooks/useVantagens'
-
-type Transaction = {
-  id: number
-  titulo: string
-  valor: number
-  autor?: string
-  data: string
-}
 
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { error } = useToast()
   const [aluno, setAluno] = useState<any>(null)
-  const [transacoes, setTransacoes] = useState<Transaction[]>([])
+  const [transacoes, setTransacoes] = useState<TransacaoDTO[]>([])
   const [loading, setLoading] = useState(true)
   
   // Hook para carregar vantagens em destaque (primeiras 6)
@@ -37,16 +29,17 @@ export default function Dashboard() {
         if (user && user.id) {
           const a = await alunosAPI.buscarPorId(user.id)
           setAluno(a)
+          // Carregar transações do aluno atual
+          const txs = await transacaoAPI.listarPorAluno(user.id)
+          setTransacoes(txs.slice(0, 2)) // Mostrar apenas as 2 últimas
         } else {
           const alunos = await alunosAPI.listar()
-          if (alunos.length > 0) setAluno(alunos[0])
+          if (alunos.length > 0) {
+            setAluno(alunos[0])
+            const txs = await transacaoAPI.listarPorAluno(alunos[0].id)
+            setTransacoes(txs.slice(0, 2))
+          }
         }
-
-        // Sample placeholders for UX while backend endpoints are not ready
-        setTransacoes([
-          { id: 1, titulo: 'Reconhecimento: Projeto X', valor: 250, autor: 'Prof. João', data: '2025-10-12' },
-          { id: 2, titulo: 'Resgate: Curso Online', valor: -300, data: '2025-10-03' },
-        ])
       } catch (err) {
         error('Erro ao carregar dados do dashboard')
       } finally {
@@ -62,6 +55,25 @@ export default function Dashboard() {
   const saldoTotal = aluno.saldoMoedas || 0
   const resgatadas = transacoes.filter(t => t.valor < 0).reduce((a, b) => a + Math.abs(b.valor), 0)
   const recebidas = transacoes.filter(t => t.valor > 0).reduce((a, b) => a + b.valor, 0)
+
+  // Formatar data
+  const formatData = (dataStr: string) => {
+    const data = new Date(dataStr)
+    return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  }
+
+  // Obter descrição baseada no tipo de transação
+  const getDescricao = (tx: TransacaoDTO) => {
+    const tiposDescricao: Record<string, string> = {
+      'ENVIO': 'Reconhecimento do Professor',
+      'RESGATE': 'Resgate de Vantagem',
+      'CREDITO': 'Crédito Recebido',
+      'prof_envio': 'Reconhecimento do Professor',
+      'aluno_resgate': 'Resgate de Vantagem',
+      'aluno_recebimento': 'Moedas Recebidas',
+    }
+    return tiposDescricao[tx.tipo] || tx.motivo || 'Transação'
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -124,20 +136,23 @@ export default function Dashboard() {
             {transacoes.length === 0 ? (
               <div className="py-6 text-center text-slate-500">Nenhuma transação encontrada</div>
             ) : (
-              transacoes.map((t) => (
-                <div key={t.id} className="py-3 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-md bg-slate-100 flex items-center justify-center text-slate-500">{t.titulo.charAt(0)}</div>
-                    <div>
-                      <div className="font-medium">{t.titulo}</div>
-                      <div className="text-sm text-slate-500">{t.autor || t.data}</div>
+              transacoes.map((t) => {
+                const descricao = getDescricao(t)
+                return (
+                  <div key={t.id} className="py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-md bg-slate-100 flex items-center justify-center text-slate-500">{descricao.charAt(0)}</div>
+                      <div>
+                        <div className="font-medium">{descricao}</div>
+                        <div className="text-sm text-slate-500">{formatData(t.data)}</div>
+                      </div>
+                    </div>
+                    <div className={`font-medium ${t.valor >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {t.valor >= 0 ? `+${t.valor}` : `${t.valor}`}
                     </div>
                   </div>
-                  <div className={`font-medium ${t.valor >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {t.valor >= 0 ? `+${t.valor}` : `${t.valor}`}
-                  </div>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>

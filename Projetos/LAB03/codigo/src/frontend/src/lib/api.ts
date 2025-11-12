@@ -108,6 +108,22 @@ export type ProfessorDTO = {
   instituicaoId: number
 }
 
+export type TransacaoDTO = {
+  id: number
+  usuario: {
+    id: number
+    nome: string
+  }
+  usuarioDestino?: {
+    id: number
+    nome: string
+  }
+  data: string
+  valor: number
+  tipo: string
+  motivo: string
+}
+
 // Auth API
 export const authAPI = {
   async login(login: string, senha: string): Promise<LoginResponseDTO> {
@@ -216,6 +232,25 @@ export const alunosAPI = {
     }
   },
 
+  async enviarMoedas(professorId: number, alunoId: number, quantidade: number, motivo: string): Promise<any> {
+    try {
+      const response = await apiCall<any>(`/api/professores/${professorId}/enviar-moedas`, {
+        method: 'POST',
+        body: JSON.stringify({
+          alunoId: alunoId,
+          quantidade: quantidade,
+          motivo: motivo
+        })
+      })
+      return response
+    } catch (err) {
+      console.error('Erro ao enviar moedas:', err)
+      // Fallback: usar adicionarMoedas (compatibilidade)
+      await this.adicionarMoedas(alunoId, quantidade)
+      return { success: true }
+    }
+  },
+
   async debitarMoedas(id: number, quantidade: number): Promise<string> {
     try {
       return await apiCall<string>(`/api/alunos/${id}/debitar-moedas?quantidade=${quantidade}`, { method: 'PATCH' })
@@ -295,6 +330,29 @@ export const professoresAPI = {
         email: created.email,
         login: created.login,
         instituicaoId: data.instituicaoId,
+      }
+    }
+  },
+
+  async buscarPorId(id: number): Promise<ProfessorDTO | null> {
+    try {
+      return await apiCall<ProfessorDTO>(`/api/professores/${id}`, {
+        method: 'GET',
+      })
+    } catch {
+      // Fallback: search in demo store
+      const { demoStore } = await import('./store')
+      const db = demoStore.getDB()
+      const prof = db.users.find((u: any) => u.id === id && u.role === 'professor')
+      if (!prof) return null
+      return {
+        id: prof.id,
+        nome: prof.name,
+        cpf: (prof as any).cpf || '',
+        departamento: (prof as any).departamento || '',
+        email: prof.email,
+        login: prof.login || prof.email,
+        instituicaoId: (prof as any).instituicaoId || 1,
       }
     }
   },
@@ -502,6 +560,244 @@ export const vantagensAPI = {
         emailEmpresa: 'empresa@example.com',
         emailEnviado: true
       }
+    }
+  },
+}
+
+// Helper para enriquecer transações com nomes de alunos
+async function enriquecerComNomesAlunos(transacoes: TransacaoDTO[]): Promise<TransacaoDTO[]> {
+  return Promise.all(transacoes.map(async (t: TransacaoDTO) => {
+    if (!t.usuario.nome && t.usuario.id && t.usuario.id !== 1) {
+      try {
+        const aluno = await alunosAPI.buscarPorId(t.usuario.id)
+        return { ...t, usuario: { ...t.usuario, nome: aluno?.nome || `Aluno #${t.usuario.id}` } }
+      } catch {
+        return { ...t, usuario: { ...t.usuario, nome: `Aluno #${t.usuario.id}` } }
+      }
+    }
+    return { ...t, usuario: { ...t.usuario, nome: t.usuario.nome || `Aluno #${t.usuario.id}` } }
+  }))
+}
+
+export const transacaoAPI = {
+  async listar(): Promise<TransacaoDTO[]> {
+    try {
+      const result = await apiCall<any>('/api/transacoes', {
+        method: 'GET',
+      })
+      
+      // Mapear resposta do backend para TransacaoDTO
+      let transacoes = Array.isArray(result) ? result.map((t: any) => ({
+        id: t.id || 0,
+        usuario: {
+          // Campo correto é usuarioDestinoId (camelCase)
+          id: t.usuarioDestinoId || t.usuario_destino_id || t.usuario?.id || t.alunoId || t.usuarioId || 1,
+          nome: t.usuarioDestinoNome || t.usuario_destino_nome || t.usuario?.nome || t.usuarioNome || '',
+        },
+        data: t.data || new Date().toISOString(),
+        valor: t.valor || 0,
+        tipo: t.tipo || 'CREDITO',
+        motivo: t.motivo || t.descricao || '',
+      })) : []
+      
+      // Enriquecer com nomes de alunos quando necessário
+      transacoes = await enriquecerComNomesAlunos(transacoes)
+      return transacoes
+    } catch (err) {
+      console.error('Erro na API de transações:', err)
+      const { demoStore } = await import('./store')
+      const db = demoStore.getDB()
+      return (db.transactions || []).map((t: any) => ({
+        id: t.id,
+        usuario: {
+          id: t.usuarioDestinoId || t.alunoId || t.professorId || 1,
+          nome: t.usuarioDestinoNome || 'Usuário',
+        },
+        data: t.data,
+        valor: t.valor,
+        tipo: t.tipo,
+        motivo: t.descricao || t.motivo || '',
+      }))
+    }
+  },
+
+  async listarPorAluno(alunoId: number): Promise<TransacaoDTO[]> {
+    try {
+      const result = await apiCall<any>(`/api/transacoes/aluno/${alunoId}`, {
+        method: 'GET',
+      })
+      
+      // Mapear resposta do backend para TransacaoDTO
+      let transacoes = Array.isArray(result) ? result.map((t: any) => ({
+        id: t.id || 0,
+        usuario: {
+          // Campo correto é usuarioDestinoId (camelCase)
+          id: t.usuarioDestinoId || t.usuario_destino_id || t.usuario?.id || t.alunoId || alunoId,
+          nome: t.usuarioDestinoNome || t.usuario_destino_nome || t.usuario?.nome || t.usuarioNome || '',
+        },
+        data: t.data || new Date().toISOString(),
+        valor: t.valor || 0,
+        tipo: t.tipo || 'CREDITO',
+        motivo: t.motivo || t.descricao || '',
+      })) : []
+      
+      // Enriquecer com nomes de alunos quando necessário
+      transacoes = await enriquecerComNomesAlunos(transacoes)
+      return transacoes
+    } catch (err) {
+      console.error('Erro na API de transações:', err)
+      const { demoStore } = await import('./store')
+      const db = demoStore.getDB()
+      return (db.transactions || [])
+        .filter((t: any) => t.alunoId === alunoId)
+        .map((t: any) => ({
+          id: t.id,
+          usuario: {
+            id: t.usuarioDestinoId || t.alunoId || t.professorId || 1,
+            nome: t.usuarioDestinoNome || 'Você',
+          },
+          data: t.data,
+          valor: t.valor,
+          tipo: t.tipo,
+          motivo: t.descricao || t.motivo || '',
+        }))
+    }
+  },
+
+  async listarPorTipo(tipo: string): Promise<TransacaoDTO[]> {
+    try {
+      const result = await apiCall<any>(`/api/transacoes/tipo/${tipo}`, {
+        method: 'GET',
+      })
+      
+      let transacoes = Array.isArray(result) ? result.map((t: any) => ({
+        id: t.id || 0,
+        usuario: {
+          // Campo correto é usuarioDestinoId (camelCase)
+          id: t.usuarioDestinoId || t.usuario_destino_id || t.usuario?.id || t.alunoId || t.usuarioId || 1,
+          nome: t.usuarioDestinoNome || t.usuario_destino_nome || t.usuario?.nome || t.usuarioNome || '',
+        },
+        data: t.data || new Date().toISOString(),
+        valor: t.valor || 0,
+        tipo: t.tipo || 'CREDITO',
+        motivo: t.motivo || t.descricao || '',
+      })) : []
+      
+      // Enriquecer com nomes de alunos quando necessário
+      transacoes = await enriquecerComNomesAlunos(transacoes)
+      return transacoes
+    } catch (err) {
+      console.error('Erro na API de transações:', err)
+      const { demoStore } = await import('./store')
+      const db = demoStore.getDB()
+      return (db.transactions || [])
+        .filter((t: any) => t.tipo === tipo)
+        .map((t: any) => ({
+          id: t.id,
+          usuario: {
+            id: t.usuarioDestinoId || t.alunoId || t.professorId || 1,
+            nome: t.usuarioDestinoNome || 'Usuário',
+          },
+          data: t.data,
+          valor: t.valor,
+          tipo: t.tipo,
+          motivo: t.descricao || t.motivo || '',
+        }))
+    }
+  },
+
+  async buscarPorId(id: number): Promise<TransacaoDTO | null> {
+    try {
+      const result = await apiCall<any>(`/api/transacoes/${id}`, {
+        method: 'GET',
+      })
+      
+      if (!result) return null
+      
+      let transacao: TransacaoDTO = {
+        id: result.id || 0,
+        usuario: {
+          // Campo correto é usuarioDestinoId (camelCase)
+          id: result.usuarioDestinoId || result.usuario_destino_id || result.usuario?.id || result.alunoId || result.usuarioId || 1,
+          nome: result.usuarioDestinoNome || result.usuario_destino_nome || result.usuario?.nome || result.usuarioNome || '',
+        },
+        data: result.data || new Date().toISOString(),
+        valor: result.valor || 0,
+        tipo: result.tipo || 'CREDITO',
+        motivo: result.motivo || result.descricao || '',
+      }
+      
+      // Enriquecer com nome de aluno quando necessário
+      if (!transacao.usuario.nome && transacao.usuario.id && transacao.usuario.id !== 1) {
+        try {
+          const aluno = await alunosAPI.buscarPorId(transacao.usuario.id)
+          transacao.usuario.nome = aluno?.nome || `Aluno #${transacao.usuario.id}`
+        } catch {
+          transacao.usuario.nome = `Aluno #${transacao.usuario.id}`
+        }
+      }
+      
+      return transacao
+    } catch {
+      const { demoStore } = await import('./store')
+      const db = demoStore.getDB()
+      const t = (db.transactions || []).find((tx: any) => tx.id === id)
+      if (!t) return null
+      return {
+        id: t.id,
+        usuario: {
+          id: t.alunoId || t.professorId || 1,
+          nome: 'Usuário',
+        },
+        data: t.data,
+        valor: t.valor,
+        tipo: t.tipo,
+        motivo: t.descricao || t.motivo || '',
+      }
+    }
+  },
+
+  async listarEnviosProfessor(professorId: number): Promise<TransacaoDTO[]> {
+    try {
+      const result = await apiCall<any>(`/api/transacoes/professor/${professorId}`, {
+        method: 'GET',
+      })
+      
+      // Mapear resposta do backend para TransacaoDTO
+      let transacoes = Array.isArray(result) ? result.map((t: any) => ({
+        id: t.id || 0,
+        usuario: {
+          // Campo correto é usuarioDestinoId (camelCase)
+          id: t.usuarioDestinoId || t.usuario_destino_id || t.alunoId || t.usuario?.id || 1,
+          // Campo correto é usuarioDestinoNome (camelCase)
+          nome: t.usuarioDestinoNome || t.usuario_destino_nome || t.alunoNome || t.nomeAluno || '',
+        },
+        data: t.data || new Date().toISOString(),
+        valor: t.valor || 0,
+        tipo: t.tipo || 'ENVIO',
+        motivo: t.motivo || t.descricao || '',
+      })) : []
+
+      // Enriquecer com nomes de alunos quando necessário (se nome estiver vazio)
+      transacoes = await enriquecerComNomesAlunos(transacoes)
+      return transacoes
+    } catch (err) {
+      console.error('Erro ao buscar envios do professor:', err)
+      const { demoStore } = await import('./store')
+      const db = demoStore.getDB()
+      return (db.transactions || [])
+        .filter((t: any) => t.tipo === 'ENVIO' && t.professorId === professorId)
+        .map((t: any) => ({
+          id: t.id,
+          usuario: {
+            id: t.usuarioDestinoId || t.alunoId || 1,
+            nome: t.usuarioDestinoNome || t.alunoNome || 'Aluno',
+          },
+          data: t.data,
+          valor: t.valor,
+          tipo: t.tipo,
+          motivo: t.descricao || t.motivo || '',
+        }))
     }
   },
 }
