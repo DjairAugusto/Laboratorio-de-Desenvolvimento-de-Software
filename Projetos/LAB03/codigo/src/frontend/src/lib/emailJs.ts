@@ -65,3 +65,56 @@ export async function sendCoinTransferEmails(payload: {
     console.error('Failed to send EmailJS FOR_SENDER', e)
   }
 }
+
+// Envia emails após resgate de vantagem (cupom gerado).
+// Se os templates não estiverem configurados, apenas registra no console.
+export async function sendResgateEmails(params: {
+  alunoEmail?: string
+  alunoNome?: string
+  empresaEmail?: string
+  empresaNome?: string
+  vantagemDescricao: string
+  codigoCupom: string
+  custoMoedas: number
+}) {
+  const { SERVICE_ID, PUBLIC_KEY, RESGATE_TEMPLATE_ALUNO, RESGATE_TEMPLATE_EMPRESA } = EMAILJS_CONFIG
+  if (!SERVICE_ID || !PUBLIC_KEY || (!RESGATE_TEMPLATE_ALUNO && !RESGATE_TEMPLATE_EMPRESA)) {
+    console.debug('EmailJS resgate: faltam credenciais ou templates; envio ignorado')
+    return
+  }
+  const baseVars = {
+    vantagem_descricao: params.vantagemDescricao,
+    codigo_cupom: params.codigoCupom,
+    custo_moedas: params.custoMoedas.toString(),
+  }
+  if (RESGATE_TEMPLATE_ALUNO && params.alunoEmail) {
+    const alunoVars = {
+      to_name: params.alunoNome || params.alunoEmail,
+      to_email: params.alunoEmail,
+      ...baseVars,
+    }
+    try {
+      emailjs.send(SERVICE_ID, RESGATE_TEMPLATE_ALUNO, alunoVars, PUBLIC_KEY).then(
+        () => console.debug('EmailJS: resgate aluno enviado'),
+        (err) => console.error('EmailJS erro resgate aluno:', err)
+      )
+    } catch (e) {
+      console.error('Falha envio email resgate aluno', e)
+    }
+  }
+  if (RESGATE_TEMPLATE_EMPRESA && params.empresaEmail) {
+    const empresaVars = {
+      empresa_nome: params.empresaNome || params.empresaEmail,
+      to_email: params.empresaEmail,
+      ...baseVars,
+    }
+    try {
+      emailjs.send(SERVICE_ID, RESGATE_TEMPLATE_EMPRESA, empresaVars, PUBLIC_KEY).then(
+        () => console.debug('EmailJS: resgate empresa enviado'),
+        (err) => console.error('EmailJS erro resgate empresa:', err)
+      )
+    } catch (e) {
+      console.error('Falha envio email resgate empresa', e)
+    }
+  }
+}

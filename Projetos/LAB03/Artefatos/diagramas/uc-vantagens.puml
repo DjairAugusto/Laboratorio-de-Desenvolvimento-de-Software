@@ -1,0 +1,82 @@
+@startuml
+title Caso de Uso — Vantagens (Empresa)
+
+left to right direction
+actor Empresa as EMP
+actor "Serviço de Arquivos" as FILES
+
+rectangle "Sistema Student Coin" as SYS {
+  usecase "Autenticar Empresa" as UC_AUTH
+  usecase "Cadastrar Vantagem" as UC_CAD
+  usecase "Editar Vantagem" as UC_EDIT
+  usecase "Excluir Vantagem" as UC_DEL
+  usecase "Listar Vantagens" as UC_LIST
+  usecase "Visualizar Detalhes\nde Vantagem" as UC_VIEW
+  usecase "Filtrar/Ordenar/\nPaginar Vantagens" as UC_FILTER
+  usecase "Validar Dados de Vantagem" as UC_VALID
+  usecase "Anexar Foto da Vantagem" as UC_PHOTO
+}
+
+EMP --> UC_LIST
+EMP --> UC_VIEW
+EMP --> UC_CAD
+EMP --> UC_EDIT
+EMP --> UC_DEL
+
+UC_CAD .> UC_AUTH : <<include>>
+UC_EDIT .> UC_AUTH : <<include>>
+UC_DEL  .> UC_AUTH : <<include>>
+UC_LIST .> UC_AUTH : <<include>>
+
+UC_CAD .> UC_VALID : <<include>>
+UC_EDIT .> UC_VALID : <<include>>
+
+UC_CAD .> UC_PHOTO : <<extend>>\n(se anexar imagem)
+UC_EDIT .> UC_PHOTO : <<extend>>\n(se alterar imagem)
+
+UC_LIST .> UC_FILTER : <<extend>>\n(opcional)
+UC_LIST .> UC_VIEW   : <<extend>>
+
+FILES <-- UC_PHOTO : upload/armazenar mídia
+
+note right of UC_VALID
+  Regras de negócio e validações:
+  - Descrição obrigatória (tamanho mínimo p.ex. 3 chars)
+  - custoMoedas > 0 e numérico inteiro
+  - Foto é opcional; se presente, validar tipo/tamanho (ex.: até 2MB)
+  - Apenas a empresa proprietária pode criar/editar/excluir suas vantagens
+end note
+
+note right of UC_CAD
+  Pré-condições:
+  - Empresa autenticada (UC_AUTH)
+
+  Fluxo principal:
+  1. Informar descrição, custo em moedas e (opcionalmente) foto.
+  2. UC_VALID executa validações.
+  3. [opcional] UC_PHOTO armazena a imagem.
+  4. Persistir a vantagem.
+
+  Alternativas de erro:
+  - Dados inválidos => informar mensagens e permitir correção.
+  - Falha no upload da foto => permitir reenviar ou salvar sem foto.
+
+  Pós-condições:
+  - Vantagem criada e disponível para listagem.
+end note
+
+note right of UC_LIST
+  Pré-condições:
+  - Empresa autenticada (UC_AUTH)
+
+  Fluxo principal:
+  1. Recuperar vantagens da empresa.
+  2. Exibir resultados.
+  3. [opcional] UC_FILTER para refinar a visualização.
+  4. [extensão] UC_VIEW para abrir detalhes e ações.
+
+  Pós-condições:
+  - Lista exibida; empresa pode navegar para editar/excluir.
+end note
+
+@enduml

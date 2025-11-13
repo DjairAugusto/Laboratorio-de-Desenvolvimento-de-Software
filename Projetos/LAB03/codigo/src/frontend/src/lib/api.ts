@@ -70,6 +70,21 @@ export type VantagemDTO = {
   empresaNome?: string
 }
 
+// Resposta de resgate de vantagem
+export type ResgateResponse = {
+  vantagemId: number
+  vantagemDescricao: string
+  custoMoedas: number
+  codigoCupom: string
+  dataResgate: string
+  novoSaldo: number
+  emailAluno: string
+  nomeAluno: string
+  empresaNome: string
+  emailEmpresa: string
+  emailEnviado: boolean
+}
+
 export type PaginationMetadata = {
   currentPage: number
   totalPages: number
@@ -510,11 +525,27 @@ export const vantagensAPI = {
     }
   },
 
-  async resgatar(vantagemId: number, alunoId: number): Promise<any> {
+  async resgatar(vantagemId: number, alunoId: number): Promise<ResgateResponse> {
     try {
-      return await apiCall<any>(`/api/vantagens/${vantagemId}/resgatar?alunoId=${alunoId}`, {
+      const resp = await apiCall<ResgateResponse>(`/api/vantagens/${vantagemId}/resgatar?alunoId=${alunoId}`, {
         method: 'POST',
       })
+      // Disparo de emails de resgate no frontend (não bloqueante)
+      try {
+        const { sendResgateEmails } = await import('./emailJs')
+        sendResgateEmails({
+          alunoEmail: resp.emailAluno,
+          alunoNome: resp.nomeAluno,
+          empresaEmail: resp.emailEmpresa,
+          empresaNome: resp.empresaNome,
+          vantagemDescricao: resp.vantagemDescricao,
+          codigoCupom: resp.codigoCupom,
+          custoMoedas: resp.custoMoedas,
+        }).catch((e: any) => console.debug('EmailJS resgate (promise catch):', e))
+      } catch (e) {
+        console.debug('EmailJS resgate não enviado (import/config falhou):', e)
+      }
+      return resp
     } catch (err) {
       // Fallback para demo
       const { demoStore } = await import('./store')
@@ -552,13 +583,13 @@ export const vantagensAPI = {
         vantagemDescricao: vantagem.descricao,
         custoMoedas: vantagem.custoMoedas,
         codigoCupom,
-        dataResgate: new Date(),
+        dataResgate: new Date().toISOString(),
         novoSaldo: aluno.saldo,
         emailAluno: aluno.email,
         nomeAluno: aluno.nome,
         empresaNome: vantagem.empresaNome || 'Empresa',
         emailEmpresa: 'empresa@example.com',
-        emailEnviado: true
+        emailEnviado: false
       }
     }
   },
@@ -798,6 +829,52 @@ export const transacaoAPI = {
           tipo: t.tipo,
           motivo: t.descricao || t.motivo || '',
         }))
+    }
+  },
+
+  async enviarMoedas(professorId: number, alunoId: number, quantidade: number, motivo: string): Promise<any> {
+    try {
+      const response = await apiCall<any>(`/api/professores/${professorId}/enviar-moedas`, {
+        method: 'POST',
+        body: JSON.stringify({
+          alunoId: alunoId,
+          quantidade: quantidade,
+          motivo: motivo
+        })
+      })
+      return response
+    } catch (err) {
+      console.error('Erro ao enviar moedas:', err)
+      // Fallback: usar adicionarMoedas (compatibilidade)
+      await this.adicionarMoedas(alunoId, quantidade)
+      return { id: 0, alunoId, quantidade, motivo }
+    }
+  },
+
+  async adicionarMoedas(alunoId: number, quantidade: number): Promise<AlunoDTO> {
+    try {
+      return await apiCall<AlunoDTO>(`/api/alunos/${alunoId}/adicionar-moedas?quantidade=${quantidade}`, {
+        method: 'PATCH',
+      })
+    } catch {
+      const { demoStore } = await import('./store')
+      const db = demoStore.getDB()
+      const aluno = db.users.find((u: any) => u.id === alunoId)
+      if (aluno) {
+        aluno.saldoMoedas = (aluno.saldoMoedas || 0) + quantidade
+      }
+      return {
+        id: alunoId,
+        nome: aluno?.name || 'Aluno',
+        documento: '',
+        email: aluno?.email || '',
+        login: aluno?.login || '',
+        rg: '',
+        endereco: '',
+        curso: '',
+        saldoMoedas: (aluno?.saldoMoedas || 0) + quantidade,
+        instituicaoId: 1,
+      }
     }
   },
 }
