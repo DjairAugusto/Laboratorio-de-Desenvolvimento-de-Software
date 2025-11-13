@@ -24,6 +24,13 @@ async function apiCall<T>(endpoint: string, options?: RequestInit): Promise<T> {
   return response.json()
 }
 
+// Cupom API (validar/usar cupom por código)
+export const cupomAPI = {
+  async usar(codigo: string): Promise<any> {
+    return apiCall<any>(`/api/cupoms/${encodeURIComponent(codigo)}/usar`, { method: 'POST' })
+  }
+}
+
 export async function apiGet(path: string) {
   const res = await fetch(`${API_BASE}${path}`)
   if (!res.ok) throw new Error(`GET ${path} ${res.status}`)

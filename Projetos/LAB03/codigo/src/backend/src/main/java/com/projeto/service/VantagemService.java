@@ -11,6 +11,7 @@ import com.projeto.repository.VantagemRepository;
 import com.projeto.repository.AlunoRepository;
 import com.projeto.repository.TransacaoRepository;
 import com.projeto.repository.EmpresaParceiraRepository;
+import com.projeto.repository.CupomRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -37,6 +38,9 @@ public class VantagemService {
 
     @Autowired
     private EmpresaParceiraRepository empresaParceiraRepository;
+
+    @Autowired
+    private CupomRepository cupomRepository;
 
     /**
      * Lista todas as vantagens com paginação otimizada
@@ -252,8 +256,13 @@ public class VantagemService {
         cupom.setVantagem(vantagem);
         cupom.setEmpresa(vantagem.getEmpresaParceira());
         
-        // Usar o método de repositório para salvar (será necessário criar o repository)
-        // Por enquanto, apenas registramos em log
+        // Persistir o cupom no banco para que possa ser validado/consumido pela empresa
+        try {
+            cupomRepository.save(cupom);
+        } catch (Exception ex) {
+            // Em caso de falha na persistência, registrar e seguir — o response ainda conterá o código
+            System.err.println("Falha ao salvar cupom: " + ex.getMessage());
+        }
         
         // Preparar response
         com.projeto.dto.ResgatoVantagemResponseDTO response = new com.projeto.dto.ResgatoVantagemResponseDTO();

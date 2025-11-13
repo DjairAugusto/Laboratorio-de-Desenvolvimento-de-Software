@@ -1,12 +1,13 @@
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import { useState, useEffect } from 'react'
-import { alunosAPI, VantagemDTO, vantagensAPI, ResgateResponse } from '../lib/api'
+import { alunosAPI, VantagemDTO, vantagensAPI, ResgateResponse, cupomAPI } from '../lib/api'
 import { useAuth } from '../context/Auth'
 import { useToast } from '../hooks/use-toast'
 import { Check, Copy } from 'lucide-react'
 
 import QRCode from 'react-qr-code'
+import { useRef } from 'react'
 
 export default function VantagemDetalhe() {
   const { id } = useParams()
@@ -18,6 +19,12 @@ export default function VantagemDetalhe() {
   const [aluno, setAluno] = useState<any>(null)
   const [resgateInfo, setResgateInfo] = useState<ResgateResponse | null>(null)
   const [copiado, setCopiado] = useState(false)
+  const [showScanner, setShowScanner] = useState(false)
+  const [scannedCode, setScannedCode] = useState<string | null>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const scanAnimationRef = useRef<number | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const [codigoInput, setCodigoInput] = useState('')
 
   useEffect(() => {
     async function loadData() {
@@ -76,6 +83,92 @@ export default function VantagemDetalhe() {
     }
   }
 
+  async function startScanner() {
+    setScannedCode(null)
+    setShowScanner(true)
+    setTimeout(async () => {
+      try {
+        if (!('mediaDevices' in navigator) || !navigator.mediaDevices.getUserMedia) {
+          error('Câmera não suportada neste navegador')
+          setShowScanner(false)
+          return
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        streamRef.current = stream
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          await videoRef.current.play()
+        }
+
+        // Prefer BarcodeDetector if disponível
+        const hasBarcodeDetector = 'BarcodeDetector' in window
+        if (!hasBarcodeDetector) {
+          warning('Leitor de QR não disponível nativamente neste navegador. Atualize para uma versão recente do Chrome ou use outro navegador.')
+        }
+
+        const detector = hasBarcodeDetector ? new (window as any).BarcodeDetector({ formats: ['qr_code'] }) : null
+
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+
+        async function scanFrame() {
+          if (!videoRef.current || videoRef.current.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) {
+            scanAnimationRef.current = requestAnimationFrame(scanFrame)
+            return
+          }
+
+          canvas.width = videoRef.current.videoWidth
+          canvas.height = videoRef.current.videoHeight
+          ctx?.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height)
+
+          try {
+            if (detector) {
+              const barcodes = await detector.detect(canvas)
+              if (barcodes && barcodes.length > 0) {
+                const value = barcodes[0].rawValue || barcodes[0].rawData || null
+                if (value) {
+                  setScannedCode(value)
+                  stopScanner()
+                  success('Código lido com sucesso')
+                  return
+                }
+              }
+            } else if (window.navigator?.mediaDevices) {
+              // Fallback: tentar usar BarcodeDetector não disponível -> informar usuário
+              // (Implementar fallback com biblioteca externa se necessário)
+            }
+          } catch (e) {
+            // ignora e continua
+          }
+
+          scanAnimationRef.current = requestAnimationFrame(scanFrame)
+        }
+
+        scanAnimationRef.current = requestAnimationFrame(scanFrame)
+      } catch (e) {
+        error('Erro ao acessar a câmera para leitura do QR')
+        setShowScanner(false)
+      }
+    }, 150)
+  }
+
+  function stopScanner() {
+    setShowScanner(false)
+    if (scanAnimationRef.current) {
+      cancelAnimationFrame(scanAnimationRef.current)
+      scanAnimationRef.current = null
+    }
+    if (videoRef.current) {
+      try { videoRef.current.pause() } catch {}
+      videoRef.current.srcObject = null
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop())
+      streamRef.current = null
+    }
+  }
+
   if (loading) return <div className="text-center py-8">Carregando...</div>
 
   if (!vantagem) {
@@ -122,6 +215,65 @@ export default function VantagemDetalhe() {
                       <Copy size={16} />
                       {copiado ? 'Copiado!' : 'Copiar Código'}
                     </button>
+                    {user && user.role === 'empresa' && (
+                      <>
+                        <div className="inline-flex items-center gap-2 ml-2">
+                          <button
+                            onClick={() => (showScanner ? stopScanner() : startScanner())}
+                            className="btn btn-sm gap-2 inline-flex items-center"
+                          >
+                            {showScanner ? 'Parar Leitura' : 'Ler QR'}
+                          </button>
+
+                          <div className="ml-2 inline-flex items-center">
+                            <input
+                              value={codigoInput}
+                              onChange={(e) => setCodigoInput(e.target.value)}
+                              placeholder="Digite o código do cupom"
+                              className="input input-sm font-mono"
+                            />
+                            <button
+                              onClick={async () => {
+                                if (!codigoInput || codigoInput.trim().length === 0) {
+                                  warning('Informe o código para validar')
+                                  return
+                                }
+                                try {
+                                  const resp = await cupomAPI.usar(codigoInput.trim())
+                                  success('Cupom validado e marcado como utilizado')
+                                  setCodigoInput('')
+                                  setScannedCode(resp?.codigo || codigoInput.trim())
+                                } catch (e: any) {
+                                  error(e?.message || String(e))
+                                }
+                              }}
+                              className="btn btn-sm ml-2"
+                            >Validar Código</button>
+                          </div>
+                        </div>
+
+                        {showScanner && (
+                          <div className="mt-4">
+                            <div className="text-sm text-slate-600 mb-2">Abrir câmera para leitura do QR</div>
+                            <div className="rounded overflow-hidden">
+                              <video ref={videoRef} className="w-full h-64 bg-black" />
+                            </div>
+                            <div className="flex gap-2 mt-2">
+                              <button onClick={stopScanner} className="btn btn-sm">Fechar</button>
+                              {scannedCode && (
+                                <div className="text-sm ml-2">Lido: <span className="font-mono font-semibold">{scannedCode}</span></div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {scannedCode && !showScanner && (
+                          <div className="mt-3">
+                            <div className="text-sm text-slate-600 mb-1">Último código lido</div>
+                            <div className="font-mono font-semibold break-all">{scannedCode}</div>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
               </div>
 
