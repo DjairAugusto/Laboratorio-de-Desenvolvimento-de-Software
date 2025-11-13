@@ -70,6 +70,32 @@ export type VantagemDTO = {
   empresaNome?: string
 }
 
+// Resposta de resgate de vantagem
+export type ResgateResponse = {
+  vantagemId: number
+  vantagemDescricao: string
+  custoMoedas: number
+  codigoCupom: string
+  dataResgate: string
+  novoSaldo: number
+  emailAluno: string
+  nomeAluno: string
+  empresaNome: string
+  emailEmpresa: string
+  emailEnviado: boolean
+}
+
+// Transações (simplificado para frontend)
+export type TransacaoDTO = {
+  id: number
+  tipo: 'prof_envio' | 'aluno_recebimento' | 'aluno_resgate'
+  data: string
+  valor: number
+  descricao?: string
+  alunoId?: number
+  professorId?: number
+}
+
 export type PaginationMetadata = {
   currentPage: number
   totalPages: number
@@ -298,6 +324,25 @@ export const professoresAPI = {
       }
     }
   },
+  async buscarPorId(id: number): Promise<ProfessorDTO> {
+    try {
+      return await apiCall<ProfessorDTO>(`/api/professores/${id}`)
+    } catch {
+      const { demoStore } = await import('./store')
+      const db = demoStore.getDB()
+      const u = db.users.find((u: any) => u.id === id && u.role === 'professor')
+      if (!u) throw new Error('Professor não encontrado (demo)')
+      return {
+        id: u.id,
+        nome: u.name,
+        cpf: '000.000.000-00',
+        departamento: 'Departamento Demo',
+        email: u.email,
+        login: u.login,
+        instituicaoId: 1,
+      }
+    }
+  },
 }
 
 // Vantagens API (empresa) - fallback to demoStore when backend is unavailable
@@ -452,11 +497,27 @@ export const vantagensAPI = {
     }
   },
 
-  async resgatar(vantagemId: number, alunoId: number): Promise<any> {
+  async resgatar(vantagemId: number, alunoId: number): Promise<ResgateResponse> {
     try {
-      return await apiCall<any>(`/api/vantagens/${vantagemId}/resgatar?alunoId=${alunoId}`, {
+      const resp = await apiCall<ResgateResponse>(`/api/vantagens/${vantagemId}/resgatar?alunoId=${alunoId}`, {
         method: 'POST',
       })
+      // Disparo de emails de resgate no frontend (não bloqueante)
+      try {
+        const { sendResgateEmails } = await import('./emailJs')
+        sendResgateEmails({
+          alunoEmail: resp.emailAluno,
+          alunoNome: resp.nomeAluno,
+          empresaEmail: resp.emailEmpresa,
+          empresaNome: resp.empresaNome,
+          vantagemDescricao: resp.vantagemDescricao,
+          codigoCupom: resp.codigoCupom,
+          custoMoedas: resp.custoMoedas,
+        }).catch((e: any) => console.debug('EmailJS resgate (promise catch):', e))
+      } catch (e) {
+        console.debug('EmailJS resgate não enviado (import/config falhou):', e)
+      }
+      return resp
     } catch (err) {
       // Fallback para demo
       const { demoStore } = await import('./store')
@@ -494,14 +555,52 @@ export const vantagensAPI = {
         vantagemDescricao: vantagem.descricao,
         custoMoedas: vantagem.custoMoedas,
         codigoCupom,
-        dataResgate: new Date(),
+        dataResgate: new Date().toISOString(),
         novoSaldo: aluno.saldo,
         emailAluno: aluno.email,
         nomeAluno: aluno.nome,
         empresaNome: vantagem.empresaNome || 'Empresa',
         emailEmpresa: 'empresa@example.com',
-        emailEnviado: true
+        emailEnviado: false
       }
+    }
+  },
+}
+
+// Transações API (leitura simples + fallback)
+export const transacoesAPI = {
+  async listarPorProfessor(professorId: number): Promise<TransacaoDTO[]> {
+    try {
+      return await apiCall<TransacaoDTO[]>(`/api/transacoes/professor/${professorId}`)
+    } catch {
+      const { demoStore } = await import('./store')
+      const db = demoStore.getDB()
+      return (db.transactions || []).filter((t: any) => t.professorId === professorId).map((t: any) => ({
+        id: t.id,
+        tipo: t.tipo,
+        data: t.data,
+        valor: t.valor,
+        descricao: t.descricao,
+        alunoId: t.alunoId,
+        professorId: t.professorId,
+      }))
+    }
+  },
+  async listarPorAluno(alunoId: number): Promise<TransacaoDTO[]> {
+    try {
+      return await apiCall<TransacaoDTO[]>(`/api/transacoes/aluno/${alunoId}`)
+    } catch {
+      const { demoStore } = await import('./store')
+      const db = demoStore.getDB()
+      return (db.transactions || []).filter((t: any) => t.alunoId === alunoId).map((t: any) => ({
+        id: t.id,
+        tipo: t.tipo,
+        data: t.data,
+        valor: t.valor,
+        descricao: t.descricao,
+        alunoId: t.alunoId,
+        professorId: t.professorId,
+      }))
     }
   },
 }

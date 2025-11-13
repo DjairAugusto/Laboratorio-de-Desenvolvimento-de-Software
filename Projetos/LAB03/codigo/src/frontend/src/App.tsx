@@ -16,6 +16,7 @@ import CadastroProfessor from './pages/CadastroProfessor'
 import EmpresaCadastro from './pages/EmpresaCadastro'
 import EmpresaVantagens from './pages/EmpresaVantagens'
 import EmpresaNovaVantagem from './pages/EmpresaNovaVantagem'
+import EmailJsTestPage from './pages/EmailJsTestPage'
 import TopBar from './components/TopBar'
 import { Toaster } from './components/Toaster'
 import { useAuth, RequireAuth, defaultDashboard } from './context/Auth'
@@ -102,6 +103,8 @@ export default function App() {
         <Route path="/empresa" element={<Shell><RequireAuth role="empresa"><EmpresaCadastro /></RequireAuth></Shell>} />
         <Route path="/empresa/vantagens" element={<Shell><RequireAuth role="empresa"><EmpresaVantagens /></RequireAuth></Shell>} />
         <Route path="/empresa/vantagens/nova" element={<Shell><RequireAuth role="empresa"><EmpresaNovaVantagem /></RequireAuth></Shell>} />
+  {/* Página interna para testar envios EmailJS */}
+  <Route path="/emailjs-test" element={<Shell><EmailJsTestPage /></Shell>} />
         <Route path="/students" element={<Shell><Students /></Shell>} />
         <Route path="/transactions" element={<Shell><Transactions /></Shell>} />
         <Route path="*" element={<Navigate to="/" replace />} />

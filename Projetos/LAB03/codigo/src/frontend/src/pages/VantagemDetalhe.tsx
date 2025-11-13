@@ -1,24 +1,12 @@
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import { useState, useEffect } from 'react'
-import { alunosAPI, VantagemDTO, vantagensAPI } from '../lib/api'
+import { alunosAPI, VantagemDTO, vantagensAPI, ResgateResponse } from '../lib/api'
 import { useAuth } from '../context/Auth'
 import { useToast } from '../hooks/use-toast'
 import { Check, Copy } from 'lucide-react'
 
-interface ResgatoInfo {
-  vantagemId: number
-  vantagemDescricao: string
-  custoMoedas: number
-  codigoCupom: string
-  dataResgate: Date
-  novoSaldo: number
-  emailAluno: string
-  nomeAluno: string
-  empresaNome: string
-  emailEmpresa: string
-  emailEnviado: boolean
-}
+import QRCode from 'react-qr-code'
 
 export default function VantagemDetalhe() {
   const { id } = useParams()
@@ -28,7 +16,7 @@ export default function VantagemDetalhe() {
   const [vantagem, setVantagem] = useState<VantagemDTO | null>(null)
   const [loading, setLoading] = useState(true)
   const [aluno, setAluno] = useState<any>(null)
-  const [resgateInfo, setResgateInfo] = useState<ResgatoInfo | null>(null)
+  const [resgateInfo, setResgateInfo] = useState<ResgateResponse | null>(null)
   const [copiado, setCopiado] = useState(false)
 
   useEffect(() => {
@@ -69,7 +57,7 @@ export default function VantagemDetalhe() {
       // Resgatar vantagem via API
       const resultado = await vantagensAPI.resgatar(vantagem.id!, aluno.id!)
       
-      setResgateInfo(resultado)
+  setResgateInfo(resultado)
       success('Vantagem resgatada com sucesso!')
       
       // Atualizar saldo do aluno
@@ -119,17 +107,22 @@ export default function VantagemDetalhe() {
               </div>
 
               <div className="border-2 border-dashed border-slate-300 p-6 rounded-lg mb-6 bg-slate-50">
-                <div className="text-center">
-                  <div className="text-sm text-slate-600 mb-2">Código do Cupom</div>
-                  <div className="text-3xl font-mono font-bold text-slate-900 mb-3 break-all">{resgateInfo.codigoCupom}</div>
-                  <button 
-                    onClick={copiarCodigo}
-                    className="btn btn-sm gap-2 inline-flex items-center"
-                  >
-                    <Copy size={16} />
-                    {copiado ? 'Copiado!' : 'Copiar Código'}
-                  </button>
-                </div>
+                  <div className="text-center">
+                    <div className="text-sm text-slate-600 mb-2">Código do Cupom</div>
+                    <div className="text-xl font-mono font-bold text-slate-900 mb-3 break-all">{resgateInfo.codigoCupom}</div>
+                    <div className="flex justify-center mb-4">
+                      <div className="bg-white p-3 rounded shadow-sm">
+                        <QRCode value={resgateInfo.codigoCupom} size={160} />
+                      </div>
+                    </div>
+                    <button
+                      onClick={copiarCodigo}
+                      className="btn btn-sm gap-2 inline-flex items-center"
+                    >
+                      <Copy size={16} />
+                      {copiado ? 'Copiado!' : 'Copiar Código'}
+                    </button>
+                  </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-6">
