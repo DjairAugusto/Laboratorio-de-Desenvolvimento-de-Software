@@ -1,0 +1,59 @@
+@startuml
+title Diagrama de Sequência — Vantagens (Listar e Cadastrar)
+autonumber
+
+participant "Empresa (usuário)" as EMP
+participant "Navegador\n(React/Vite)" as BROWSER
+participant "EmpresaVantagens.tsx" as UI
+participant "vantagensAPI\n(src/lib/api.ts)" as API
+participant "Spring Boot API" as BE
+participant "VantagemController" as CTRL
+participant "VantagemService" as SRV
+database  "Database" as DB
+participant "demoStore\n(src/lib/store.ts)" as STORE
+
+== Listar Vantagens ==
+EMP -> BROWSER: Acessa tela "Vantagens"
+BROWSER -> UI: Montar componente
+UI -> API: listarPorEmpresa(empresaId)
+alt Backend disponível
+  API -> BE: GET /api/empresas/{empresaId}/vantagens
+  BE -> CTRL: dispatch
+  CTRL -> SRV: listByEmpresa(empresaId)
+  SRV -> DB: SELECT * FROM vantagens WHERE empresaId = ?
+  DB --> SRV: Lista de vantagens
+  SRV --> CTRL: Lista
+  CTRL --> BE: 200 OK + JSON
+  BE --> API: 200 + JSON
+  API --> UI: Lista de vantagens
+  UI --> BROWSER: Renderiza lista
+else Backend indisponível (fallback)
+  API -> STORE: getDB().advantages (filtra empresaId)
+  STORE --> API: Lista (demo)
+  API --> UI: Lista (demo)
+  UI --> BROWSER: Renderiza lista (demo)
+end
+
+== Cadastrar Vantagem ==
+EMP -> BROWSER: Clica "Nova Vantagem" e envia formulário
+BROWSER -> UI: Dados (descricao, foto?, custoMoedas)
+UI -> API: criar(empresaId, dados)
+alt Backend disponível
+  API -> BE: POST /api/empresas/{empresaId}/vantagens
+  BE -> CTRL: dispatch
+  CTRL -> SRV: createVantagem(dados)
+  SRV -> DB: INSERT vantagem
+  DB --> SRV: OK + id
+  SRV --> CTRL: Vantagem criada
+  CTRL --> BE: 201 Created + JSON
+  BE --> API: 201 + JSON
+  API --> UI: Vantagem criada
+  UI --> BROWSER: Atualiza lista + mensagem sucesso
+else Backend indisponível (fallback)
+  API -> STORE: push(dados) em advantages (gera id)
+  STORE --> API: rec com id
+  API --> UI: Vantagem criada (demo)
+  UI --> BROWSER: Atualiza lista (demo) + sucesso
+end
+
+@enduml
