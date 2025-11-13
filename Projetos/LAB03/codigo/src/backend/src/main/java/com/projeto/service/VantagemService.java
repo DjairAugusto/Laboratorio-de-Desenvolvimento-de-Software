@@ -1,28 +1,29 @@
 package com.projeto.service;
 
-import com.projeto.dto.VantagemRequestDTO;
-import com.projeto.dto.VantagemResponseDTO;
-import com.projeto.dto.PageResponseDTO;
-import com.projeto.model.Vantagem;
-import com.projeto.model.Aluno;
-import com.projeto.model.Transacao;
-import com.projeto.model.EmpresaParceira;
-import com.projeto.repository.VantagemRepository;
-import com.projeto.repository.AlunoRepository;
-import com.projeto.repository.TransacaoRepository;
-import com.projeto.repository.EmpresaParceiraRepository;
-import com.projeto.repository.CupomRepository;
+import java.util.Base64;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Base64;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import com.projeto.dto.PageResponseDTO;
+import com.projeto.dto.VantagemRequestDTO;
+import com.projeto.dto.VantagemResponseDTO;
+import com.projeto.model.Aluno;
+import com.projeto.model.EmpresaParceira;
+import com.projeto.model.Transacao;
+import com.projeto.model.Vantagem;
+import com.projeto.repository.AlunoRepository;
+import com.projeto.repository.CupomRepository;
+import com.projeto.repository.EmpresaParceiraRepository;
+import com.projeto.repository.TransacaoRepository;
+import com.projeto.repository.VantagemRepository;
 
 @Service
 public class VantagemService {
@@ -132,7 +133,7 @@ public class VantagemService {
         Vantagem vantagem = new Vantagem();
         vantagem.setDescricao(requestDTO.getDescricao());
         vantagem.setCustoMoedas(requestDTO.getCustoMoedas());
-        
+
         // Converter foto de Base64 para byte array se fornecida
         if (requestDTO.getFoto() != null && !requestDTO.getFoto().isEmpty()) {
             try {
@@ -160,13 +161,13 @@ public class VantagemService {
     @Transactional
     public Optional<VantagemResponseDTO> atualizar(Long id, VantagemRequestDTO requestDTO) {
         Optional<Vantagem> vantagemExistente = vantagemRepository.findById(id);
-        
+
         if (vantagemExistente.isPresent()) {
             Vantagem vantagem = vantagemExistente.get();
-            
+
             vantagem.setDescricao(requestDTO.getDescricao());
             vantagem.setCustoMoedas(requestDTO.getCustoMoedas());
-            
+
             // Converter foto de Base64 para byte array se fornecida
             if (requestDTO.getFoto() != null && !requestDTO.getFoto().isEmpty()) {
                 try {
@@ -187,7 +188,7 @@ public class VantagemService {
             Vantagem vantagemAtualizada = vantagemRepository.save(vantagem);
             return Optional.of(converterParaResponseDTO(vantagemAtualizada));
         }
-        
+
         return Optional.empty();
     }
 
@@ -241,11 +242,11 @@ public class VantagemService {
 
         // Gerar código de cupom único (formato: VANTAGEM-ALUNONOME-DATA-RANDOM)
         String codigoCupom = gerarCodigoCupom(vantagem.getId(), aluno.getId());
-        
+
         // Criar cupom
         Date agora = new Date();
         Date vencimento = new Date(agora.getTime() + (30L * 24 * 60 * 60 * 1000)); // 30 dias
-        
+
         com.projeto.model.Cupom cupom = new com.projeto.model.Cupom();
         cupom.setCodigo(codigoCupom);
         cupom.setDataGeracao(agora);
@@ -255,15 +256,16 @@ public class VantagemService {
         cupom.setAluno(aluno);
         cupom.setVantagem(vantagem);
         cupom.setEmpresa(vantagem.getEmpresaParceira());
-        
+
         // Persistir o cupom no banco para que possa ser validado/consumido pela empresa
         try {
             cupomRepository.save(cupom);
         } catch (Exception ex) {
-            // Em caso de falha na persistência, registrar e seguir — o response ainda conterá o código
+            // Em caso de falha na persistência, registrar e seguir — o response ainda
+            // conterá o código
             System.err.println("Falha ao salvar cupom: " + ex.getMessage());
         }
-        
+
         // Preparar response
         com.projeto.dto.ResgatoVantagemResponseDTO response = new com.projeto.dto.ResgatoVantagemResponseDTO();
         response.setVantagemId(vantagem.getId());
@@ -274,28 +276,28 @@ public class VantagemService {
         response.setNovoSaldo(novoSaldo);
         response.setEmailAluno(aluno.getEmail());
         response.setNomeAluno(aluno.getNome());
-        
+
         if (vantagem.getEmpresaParceira() != null) {
-            String empresaNome = (vantagem.getEmpresaParceira().getNomeFantasia() != null && 
-                                !vantagem.getEmpresaParceira().getNomeFantasia().isBlank())
-                    ? vantagem.getEmpresaParceira().getNomeFantasia()
-                    : vantagem.getEmpresaParceira().getNome();
+            String empresaNome = (vantagem.getEmpresaParceira().getNomeFantasia() != null &&
+                    !vantagem.getEmpresaParceira().getNomeFantasia().isBlank())
+                            ? vantagem.getEmpresaParceira().getNomeFantasia()
+                            : vantagem.getEmpresaParceira().getNome();
             response.setEmpresaNome(empresaNome);
             response.setEmailEmpresa(vantagem.getEmpresaParceira().getEmail());
         }
-        
+
         response.setEmailEnviado(true);
-        
+
         return response;
     }
-    
+
     /**
      * Gera um código único para o cupom
      * Formato: SUP-[VANTAGEMID]-[ALUNOID]-[TIMESTAMP]-[RANDOM]
      */
     private String gerarCodigoCupom(Long vantagemId, Long alunoId) {
         long timestamp = System.currentTimeMillis() / 1000;
-        int random = (int)(Math.random() * 10000);
+        int random = (int) (Math.random() * 10000);
         return String.format("CUPOM-%d-%d-%d-%04d", vantagemId, alunoId, timestamp, random);
     }
 
@@ -312,7 +314,8 @@ public class VantagemService {
         EmpresaParceira empresa = vantagem.getEmpresaParceira();
         String empresaNome = null;
         if (empresa != null) {
-            // Preferir nomeFantasia quando disponível; caso contrário, usar nome herdado de Usuario
+            // Preferir nomeFantasia quando disponível; caso contrário, usar nome herdado de
+            // Usuario
             empresaNome = (empresa.getNomeFantasia() != null && !empresa.getNomeFantasia().isBlank())
                     ? empresa.getNomeFantasia()
                     : empresa.getNome();
@@ -324,8 +327,7 @@ public class VantagemService {
                 fotoBase64,
                 vantagem.getCustoMoedas(),
                 empresa != null ? empresa.getId() : null,
-                empresaNome
-        );
+                empresaNome);
     }
 
     /**
@@ -333,18 +335,18 @@ public class VantagemService {
      */
     private PageResponseDTO<VantagemResponseDTO> convertToPageResponse(Page<Vantagem> page) {
         List<VantagemResponseDTO> items = page.getContent().stream()
-            .map(this::converterParaResponseDTO)
-            .collect(Collectors.toList());
-        
+                .map(this::converterParaResponseDTO)
+                .collect(Collectors.toList());
+
         PageResponseDTO.PaginationMetadata metadata = new PageResponseDTO.PaginationMetadata(
-            page.getNumber(),           // currentPage
-            page.getTotalPages(),        // totalPages
-            page.getTotalElements(),     // totalItems
-            page.getSize(),              // pageSize
-            page.hasNext(),              // hasNext
-            page.hasPrevious()           // hasPrevious
+                page.getNumber(), // currentPage
+                page.getTotalPages(), // totalPages
+                page.getTotalElements(), // totalItems
+                page.getSize(), // pageSize
+                page.hasNext(), // hasNext
+                page.hasPrevious() // hasPrevious
         );
-        
+
         return new PageResponseDTO<>(items, metadata);
     }
 }

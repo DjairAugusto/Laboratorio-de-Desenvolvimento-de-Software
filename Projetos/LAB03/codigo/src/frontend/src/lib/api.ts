@@ -361,7 +361,7 @@ export const vantagensAPI = {
       if (params?.size !== undefined) queryParams.append('size', params.size.toString())
       if (params?.sortBy) queryParams.append('sortBy', params.sortBy)
       if (params?.direction) queryParams.append('direction', params.direction)
-      
+
       const query = queryParams.toString()
       return await apiCall<PageResponse<VantagemDTO>>(`/api/vantagens${query ? `?${query}` : ''}`)
     } catch {
@@ -375,12 +375,12 @@ export const vantagensAPI = {
         empresaId: v.empresaId,
         empresaNome: v.empresaNome,
       }))
-      
+
       const page = params?.page ?? 0
       const size = params?.size ?? 10
       const start = page * size
       const items = all.slice(start, start + size)
-      
+
       return {
         items,
         pagination: {
@@ -402,7 +402,7 @@ export const vantagensAPI = {
       if (params?.size !== undefined) queryParams.append('size', params.size.toString())
       if (params?.sortBy) queryParams.append('sortBy', params.sortBy)
       if (params?.direction) queryParams.append('direction', params.direction)
-      
+
       const query = queryParams.toString()
       return await apiCall<PageResponse<VantagemDTO>>(`/api/empresas/${empresaId}/vantagens${query ? `?${query}` : ''}`)
     } catch {
@@ -419,12 +419,12 @@ export const vantagensAPI = {
           empresaId: v.empresaId,
           empresaNome: v.empresaNome,
         }))
-      
+
       const page = params?.page ?? 0
       const size = params?.size ?? 10
       const start = page * size
       const items = all.slice(start, start + size)
-      
+
       return {
         items,
         pagination: {
@@ -475,9 +475,9 @@ export const vantagensAPI = {
 
   async atualizar(empresaId: number, id: number, data: Partial<VantagemDTO>): Promise<VantagemDTO> {
     try {
-      return await apiCall<VantagemDTO>(`/api/empresas/${empresaId}/vantagens/${id}`, { 
-        method: 'PUT', 
-        body: JSON.stringify(data) 
+      return await apiCall<VantagemDTO>(`/api/empresas/${empresaId}/vantagens/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
       })
     } catch {
       const { demoStore } = await import('./store')
@@ -531,18 +531,18 @@ export const vantagensAPI = {
       const db = demoStore.getDB()
       const aluno = db.students?.find((a: any) => a.id === alunoId)
       const vantagem = db.advantages?.find((v: any) => v.id === vantagemId)
-      
+
       if (!aluno || !vantagem) {
         throw new Error('Aluno ou vantagem não encontrados')
       }
-      
+
       if (aluno.saldo < vantagem.custoMoedas) {
         throw new Error('Saldo insuficiente')
       }
-      
+
       // Gerar cupom de resgate
       const codigoCupom = `CUPOM-${vantagemId}-${alunoId}-${Date.now()}-${Math.floor(Math.random() * 10000)}`
-      
+
       // Debitar moedas
       aluno.saldo = (aluno.saldo ?? 0) - vantagem.custoMoedas
       db.transactions = db.transactions || []
@@ -554,9 +554,9 @@ export const vantagensAPI = {
         valor: vantagem.custoMoedas,
         descricao: 'Resgate: ' + vantagem.descricao
       })
-      
+
       localStorage.setItem('lab03-demo-db', JSON.stringify(db))
-      
+
       return {
         vantagemId,
         vantagemDescricao: vantagem.descricao,

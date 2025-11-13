@@ -63,12 +63,12 @@ export default function VantagemDetalhe() {
 
       // Resgatar vantagem via API
       const resultado = await vantagensAPI.resgatar(vantagem.id!, aluno.id!)
-      
-  setResgateInfo(resultado)
+
+      setResgateInfo(resultado)
       success('Vantagem resgatada com sucesso!')
-      
+
       // Atualizar saldo do aluno
-      setAluno({...aluno, saldoMoedas: resultado.novoSaldo})
+      setAluno({ ...aluno, saldoMoedas: resultado.novoSaldo })
     } catch (err) {
       error('Erro ao resgatar vantagem. Tente novamente.')
     }
@@ -160,7 +160,7 @@ export default function VantagemDetalhe() {
       scanAnimationRef.current = null
     }
     if (videoRef.current) {
-      try { videoRef.current.pause() } catch {}
+      try { videoRef.current.pause() } catch { }
       videoRef.current.srcObject = null
     }
     if (streamRef.current) {
@@ -200,81 +200,81 @@ export default function VantagemDetalhe() {
               </div>
 
               <div className="border-2 border-dashed border-slate-300 p-6 rounded-lg mb-6 bg-slate-50">
-                  <div className="text-center">
-                    <div className="text-sm text-slate-600 mb-2">Código do Cupom</div>
-                    <div className="text-xl font-mono font-bold text-slate-900 mb-3 break-all">{resgateInfo.codigoCupom}</div>
-                    <div className="flex justify-center mb-4">
-                      <div className="bg-white p-3 rounded shadow-sm">
-                        <QRCode value={resgateInfo.codigoCupom} size={160} />
-                      </div>
+                <div className="text-center">
+                  <div className="text-sm text-slate-600 mb-2">Código do Cupom</div>
+                  <div className="text-xl font-mono font-bold text-slate-900 mb-3 break-all">{resgateInfo.codigoCupom}</div>
+                  <div className="flex justify-center mb-4">
+                    <div className="bg-white p-3 rounded shadow-sm">
+                      <QRCode value={resgateInfo.codigoCupom} size={160} />
                     </div>
-                    <button
-                      onClick={copiarCodigo}
-                      className="btn btn-sm gap-2 inline-flex items-center"
-                    >
-                      <Copy size={16} />
-                      {copiado ? 'Copiado!' : 'Copiar Código'}
-                    </button>
-                    {user && user.role === 'empresa' && (
-                      <>
-                        <div className="inline-flex items-center gap-2 ml-2">
-                          <button
-                            onClick={() => (showScanner ? stopScanner() : startScanner())}
-                            className="btn btn-sm gap-2 inline-flex items-center"
-                          >
-                            {showScanner ? 'Parar Leitura' : 'Ler QR'}
-                          </button>
+                  </div>
+                  <button
+                    onClick={copiarCodigo}
+                    className="btn btn-sm gap-2 inline-flex items-center"
+                  >
+                    <Copy size={16} />
+                    {copiado ? 'Copiado!' : 'Copiar Código'}
+                  </button>
+                  {user && user.role === 'empresa' && (
+                    <>
+                      <div className="inline-flex items-center gap-2 ml-2">
+                        <button
+                          onClick={() => (showScanner ? stopScanner() : startScanner())}
+                          className="btn btn-sm gap-2 inline-flex items-center"
+                        >
+                          {showScanner ? 'Parar Leitura' : 'Ler QR'}
+                        </button>
 
-                          <div className="ml-2 inline-flex items-center">
-                            <input
-                              value={codigoInput}
-                              onChange={(e) => setCodigoInput(e.target.value)}
-                              placeholder="Digite o código do cupom"
-                              className="input input-sm font-mono"
-                            />
-                            <button
-                              onClick={async () => {
-                                if (!codigoInput || codigoInput.trim().length === 0) {
-                                  warning('Informe o código para validar')
-                                  return
-                                }
-                                try {
-                                  const resp = await cupomAPI.usar(codigoInput.trim())
-                                  success('Cupom validado e marcado como utilizado')
-                                  setCodigoInput('')
-                                  setScannedCode(resp?.codigo || codigoInput.trim())
-                                } catch (e: any) {
-                                  error(e?.message || String(e))
-                                }
-                              }}
-                              className="btn btn-sm ml-2"
-                            >Validar Código</button>
+                        <div className="ml-2 inline-flex items-center">
+                          <input
+                            value={codigoInput}
+                            onChange={(e) => setCodigoInput(e.target.value)}
+                            placeholder="Digite o código do cupom"
+                            className="input input-sm font-mono"
+                          />
+                          <button
+                            onClick={async () => {
+                              if (!codigoInput || codigoInput.trim().length === 0) {
+                                warning('Informe o código para validar')
+                                return
+                              }
+                              try {
+                                const resp = await cupomAPI.usar(codigoInput.trim())
+                                success('Cupom validado e marcado como utilizado')
+                                setCodigoInput('')
+                                setScannedCode(resp?.codigo || codigoInput.trim())
+                              } catch (e: any) {
+                                error(e?.message || String(e))
+                              }
+                            }}
+                            className="btn btn-sm ml-2"
+                          >Validar Código</button>
+                        </div>
+                      </div>
+
+                      {showScanner && (
+                        <div className="mt-4">
+                          <div className="text-sm text-slate-600 mb-2">Abrir câmera para leitura do QR</div>
+                          <div className="rounded overflow-hidden">
+                            <video ref={videoRef} className="w-full h-64 bg-black" />
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            <button onClick={stopScanner} className="btn btn-sm">Fechar</button>
+                            {scannedCode && (
+                              <div className="text-sm ml-2">Lido: <span className="font-mono font-semibold">{scannedCode}</span></div>
+                            )}
                           </div>
                         </div>
-
-                        {showScanner && (
-                          <div className="mt-4">
-                            <div className="text-sm text-slate-600 mb-2">Abrir câmera para leitura do QR</div>
-                            <div className="rounded overflow-hidden">
-                              <video ref={videoRef} className="w-full h-64 bg-black" />
-                            </div>
-                            <div className="flex gap-2 mt-2">
-                              <button onClick={stopScanner} className="btn btn-sm">Fechar</button>
-                              {scannedCode && (
-                                <div className="text-sm ml-2">Lido: <span className="font-mono font-semibold">{scannedCode}</span></div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        {scannedCode && !showScanner && (
-                          <div className="mt-3">
-                            <div className="text-sm text-slate-600 mb-1">Último código lido</div>
-                            <div className="font-mono font-semibold break-all">{scannedCode}</div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
+                      )}
+                      {scannedCode && !showScanner && (
+                        <div className="mt-3">
+                          <div className="text-sm text-slate-600 mb-1">Último código lido</div>
+                          <div className="font-mono font-semibold break-all">{scannedCode}</div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-6">
@@ -300,14 +300,14 @@ export default function VantagemDetalhe() {
               </div>
 
               <div className="flex gap-2">
-                <button 
-                  className="btn bg-emerald-600 text-white hover:bg-emerald-700 flex-1" 
+                <button
+                  className="btn bg-emerald-600 text-white hover:bg-emerald-700 flex-1"
                   onClick={() => navigate('/dashboard')}
                 >
                   Ir para Dashboard
                 </button>
-                <button 
-                  className="btn bg-slate-200 text-slate-800 hover:bg-slate-300 flex-1" 
+                <button
+                  className="btn bg-slate-200 text-slate-800 hover:bg-slate-300 flex-1"
                   onClick={() => navigate('/vantagens')}
                 >
                   Explorar Mais Vantagens
@@ -354,10 +354,10 @@ export default function VantagemDetalhe() {
             <div className="grid md:grid-cols-2 gap-4">
               <div className="aspect-video bg-slate-100 rounded-md flex items-center justify-center text-slate-400">
                 {vantagem.foto ? (
-                  <img 
-                    src={`data:image/jpeg;base64,${vantagem.foto}`} 
-                    alt={vantagem.descricao} 
-                    className="w-full h-full object-cover rounded-md" 
+                  <img
+                    src={`data:image/jpeg;base64,${vantagem.foto}`}
+                    alt={vantagem.descricao}
+                    className="w-full h-full object-cover rounded-md"
                   />
                 ) : (
                   'Imagem'
@@ -379,8 +379,8 @@ export default function VantagemDetalhe() {
                   </div>
                 )}
                 <div className="flex gap-2 mb-6">
-                  <button 
-                    className="btn btn-lg bg-sky-600 text-white hover:bg-sky-700" 
+                  <button
+                    className="btn btn-lg bg-sky-600 text-white hover:bg-sky-700"
                     onClick={handleRedeem}
                     disabled={!aluno || aluno.saldoMoedas < vantagem.custoMoedas}
                   >

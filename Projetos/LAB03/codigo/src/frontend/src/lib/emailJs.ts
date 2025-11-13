@@ -87,11 +87,17 @@ export async function sendResgateEmails(params: {
     codigo_cupom: params.codigoCupom,
     custo_moedas: params.custoMoedas.toString(),
   }
+  // build a QR image URL (Google Chart API) so email templates can embed it
+  // template usage example: <img src="{{qr_image_url}}" alt="QR Code" />
+  const qrImageUrl = `https://chart.googleapis.com/chart?cht=qr&chs=400x400&chl=${encodeURIComponent(
+    params.codigoCupom
+  )}`
+  const baseVarsWithQr = { ...baseVars, qr_image_url: qrImageUrl }
   if (RESGATE_TEMPLATE_ALUNO && params.alunoEmail) {
     const alunoVars = {
       to_name: params.alunoNome || params.alunoEmail,
       to_email: params.alunoEmail,
-      ...baseVars,
+      ...baseVarsWithQr,
     }
     try {
       emailjs.send(SERVICE_ID, RESGATE_TEMPLATE_ALUNO, alunoVars, PUBLIC_KEY).then(
@@ -106,7 +112,7 @@ export async function sendResgateEmails(params: {
     const empresaVars = {
       empresa_nome: params.empresaNome || params.empresaEmail,
       to_email: params.empresaEmail,
-      ...baseVars,
+      ...baseVarsWithQr,
     }
     try {
       emailjs.send(SERVICE_ID, RESGATE_TEMPLATE_EMPRESA, empresaVars, PUBLIC_KEY).then(
