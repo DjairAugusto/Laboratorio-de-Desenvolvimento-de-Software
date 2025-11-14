@@ -1,4 +1,3 @@
-
 # 💰 Sistema de Moeda Estudantil 
 
 ## 📘 Descrição do Projeto
@@ -55,6 +54,36 @@ O acesso ao sistema requer **autenticação obrigatória**.
 - **Alunos**: recebem emails ao ganhar moedas e ao resgatar vantagens.  
 - **Empresas**: recebem emails com o código do cupom a ser conferido.  
 - **Cupom digital**: contém código de verificação único gerado pelo sistema.
+- **QR Code**: cada resgate gera um QR Code único que pode ser escaneado pela empresa para validação do cupom.
+
+---
+
+## 🎁 Sistema de Resgate de Vantagens
+
+O sistema implementa um fluxo completo de resgate de vantagens com as seguintes funcionalidades:
+
+### 🔄 Processo de Resgate
+1. **Seleção**: Aluno visualiza vantagens disponíveis no marketplace.
+2. **Validação**: Sistema verifica se o aluno possui saldo suficiente.
+3. **Confirmação**: Após confirmação, moedas são debitadas automaticamente.
+4. **Geração de Cupom**: Sistema gera cupom único com:
+   - Código alfanumérico de validação
+   - QR Code para leitura digital
+   - Informações da vantagem e empresa
+5. **Notificação Dupla**:
+   - Aluno recebe email com o cupom digital
+   - Empresa recebe notificação do resgate
+
+### 📱 QR Code
+- Cada cupom possui um QR Code único gerado automaticamente
+- Contém o código de validação do cupom
+- Pode ser escaneado pela empresa parceira para confirmar o resgate
+- Facilita a verificação e reduz fraudes
+
+### 🔒 Validação de Cupom
+- Empresas podem consultar cupons pelo código
+- Verificação de autenticidade através do QR Code
+- Histórico completo de resgates realizados
 
 ---
 
@@ -65,8 +94,10 @@ O acesso ao sistema requer **autenticação obrigatória**.
 3. Envio de moedas por professores.  
 4. Consulta de extrato por alunos e professores.  
 5. Resgate de vantagens e envio de cupons por email.  
-6. Persistência de dados (ORM/DAO).  
-7. Interface para CRUD de aluno e empresa.
+6. Geração de QR Code único para cada cupom.
+7. Validação de cupons pelas empresas parceiras.
+8. Persistência de dados (ORM/DAO).  
+9. Interface para CRUD de aluno e empresa.
 
 ---
 
@@ -81,6 +112,13 @@ O sistema deve seguir o padrão **MVC** e contemplar:
 - **Camada de Persistência**: modelo ER e integração via ORM/DAO.  
 - **CRUDs**: aluno e empresa parceira (versões inicial e final).  
 - **Banco de Dados**: pode ser relacional (MySQL, PostgreSQL, H2 etc.).
+
+### 🛠️ Tecnologias Implementadas
+- **Backend**: Java com Spring Boot
+- **Frontend**: React + TypeScript
+- **QR Code**: Biblioteca de geração de QR Code para cupons
+- **Email**: Sistema de notificações automatizado
+- **Autenticação**: JWT para controle de acesso
 
 ---
 
