@@ -41,6 +41,7 @@ public class VantagemService {
     /**
      * Lista todas as vantagens com paginação otimizada
      */
+    @Transactional(readOnly = true)
     public PageResponseDTO<VantagemResponseDTO> listarTodas(Pageable pageable) {
         Page<Vantagem> page = vantagemRepository.findAll(pageable);
         return convertToPageResponse(page);
@@ -49,6 +50,7 @@ public class VantagemService {
     /**
      * Busca uma vantagem por ID
      */
+    @Transactional(readOnly = true)
     public Optional<VantagemResponseDTO> buscarPorId(Long id) {
         Optional<Vantagem> vantagem = vantagemRepository.findById(id);
         return vantagem.map(this::converterParaResponseDTO);
@@ -57,6 +59,7 @@ public class VantagemService {
     /**
      * Lista vantagens de uma empresa específica com paginação otimizada
      */
+    @Transactional(readOnly = true)
     public PageResponseDTO<VantagemResponseDTO> listarPorEmpresa(Long empresaId, Pageable pageable) {
         Page<Vantagem> page = vantagemRepository.findByEmpresaParceira_Id(empresaId, pageable);
         return convertToPageResponse(page);
@@ -294,10 +297,15 @@ public class VantagemService {
      * Converte Vantagem para VantagemResponseDTO
      */
     private VantagemResponseDTO converterParaResponseDTO(Vantagem vantagem) {
-        // Converter foto de byte array para Base64
+        // Converter foto de byte array para Base64 (com try-catch para evitar lazy loading errors)
         String fotoBase64 = null;
-        if (vantagem.getFoto() != null && vantagem.getFoto().length > 0) {
-            fotoBase64 = Base64.getEncoder().encodeToString(vantagem.getFoto());
+        try {
+            if (vantagem.getFoto() != null && vantagem.getFoto().length > 0) {
+                fotoBase64 = Base64.getEncoder().encodeToString(vantagem.getFoto());
+            }
+        } catch (Exception e) {
+            // Ignorar erros ao carregar foto (lazy loading ou streaming issues)
+            fotoBase64 = null;
         }
 
         EmpresaParceira empresa = vantagem.getEmpresaParceira();

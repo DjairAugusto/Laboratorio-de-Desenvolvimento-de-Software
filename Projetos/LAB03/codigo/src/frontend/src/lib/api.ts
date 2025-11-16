@@ -859,7 +859,7 @@ export const transacaoAPI = {
     } catch {
       const { demoStore } = await import('./store')
       const db = demoStore.getDB()
-      const aluno = db.users.find((u: any) => u.id === alunoId)
+      const aluno = db.users.find((u: any) => u.id === alunoId) as any
       if (aluno) {
         aluno.saldoMoedas = (aluno.saldoMoedas || 0) + quantidade
       }

@@ -9,7 +9,7 @@ export default function Vantagens() {
   const { user } = useAuth()
   const [q, setQ] = useState('')
   
-  // Carrega todas as vantagens disponíveis com paginação
+  // Carrega todas as vantagens da empresa logada
   const { 
     vantagens, 
     loading, 
@@ -18,6 +18,7 @@ export default function Vantagens() {
     previousPage, 
     goToPage 
   } = useVantagens({ 
+    empresaId: user?.role === 'empresa' ? user.id : undefined,
     page: 0, 
     size: 12, 
     sortBy: 'custoMoedas',
@@ -31,7 +32,10 @@ export default function Vantagens() {
 
   return (
     <div>
-      <PageHeader title="Vantagens" action={<div className="text-sm text-slate-500">Marketplace</div>} />
+      <PageHeader 
+        title="Vantagens" 
+        action={<div className="text-sm text-slate-500">{user?.role === 'empresa' ? 'Meus Produtos' : 'Marketplace'}</div>} 
+      />
 
       <div className="mb-4 flex items-center gap-3">
         <input className="input flex-1" placeholder="Buscar vantagens..." value={q} onChange={e => setQ(e.target.value)} />

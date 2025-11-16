@@ -109,22 +109,22 @@ export default function Dashboard() {
 
       {/* Right: stats, transactions and featured advantages */}
       <div className="lg:col-span-2 space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div className="card p-5">
             <div className="text-sm text-slate-500">Saldo Total</div>
             <div className="text-2xl font-semibold mt-1">{saldoTotal} moedas</div>
             <div className="text-xs text-slate-400 mt-2">Disponível para resgate</div>
           </div>
-          <div className="card p-5">
+          {/* <div className="card p-5">
             <div className="text-sm text-slate-500">Recebidas (30d)</div>
             <div className="text-2xl font-semibold mt-1">{recebidas}</div>
             <div className="text-xs text-slate-400 mt-2">Nos últimos 30 dias</div>
-          </div>
-          <div className="card p-5">
+          </div> */}
+          {/* <div className="card p-5">
             <div className="text-sm text-slate-500">Resgatadas (30d)</div>
             <div className="text-2xl font-semibold mt-1">{resgatadas}</div>
             <div className="text-xs text-slate-400 mt-2">Nos últimos 30 dias</div>
-          </div>
+          </div> */}
         </div>
 
         <div className="card p-5">

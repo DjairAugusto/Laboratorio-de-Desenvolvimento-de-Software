@@ -8,6 +8,7 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.Basic;
 
 @Entity
 public class Vantagem {
@@ -18,6 +19,7 @@ public class Vantagem {
     private String descricao;
 
     @Lob
+    @Basic(fetch = FetchType.LAZY)
     private byte[] foto;
 
     private double custoMoedas;
